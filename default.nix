@@ -1,19 +1,15 @@
-{ cabal, reflex, reflexDom, MissingH, fileEmbed
+{ mkDerivation, reflex, reflex-dom, file-embed
 }:
 
-cabal.mkDerivation (self: {
+mkDerivation {
   pname = "reflex-todomvc";
   version = "0.1";
   src = ./.;
+  isExecutable = true;
   buildDepends = [
     reflex
-    reflexDom
-    MissingH
-    fileEmbed
+    reflex-dom
+    file-embed
   ];
-  meta = {
-    description = "Functional Reactive TodoMVC application";
-    license = self.stdenv.lib.licenses.unfree;
-    platforms = self.ghc.meta.platforms;
-  };
-})
+  license = null;
+}

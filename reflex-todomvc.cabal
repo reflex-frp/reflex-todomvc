@@ -21,7 +21,7 @@ executable reflex-todomvc
     reflex-dom,
     containers,
     file-embed,
-    MissingH,
+    text,
     mtl
 
   other-extensions: TemplateHaskell

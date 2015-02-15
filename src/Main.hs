@@ -12,9 +12,9 @@ import Data.Foldable
 import Data.Traversable
 import Data.Monoid (Monoid (..), (<>))
 import Data.List (intercalate)
-import Data.String.Utils (strip)
 import Data.FileEmbed
 import Control.Concurrent
+import qualified Data.Text as T
 
 import Reflex
 import Reflex.Dom
@@ -99,7 +99,7 @@ taskEntry = do
     let -- | Get the current value of the textbox whenever the user hits enter
         newValue = tag (current $ _textInput_value descriptionBox) newValueEntered
         -- | Strip leading and trailing whitespace from the user's entry, and discard it if nothing remains
-        stripDescription d = case strip d of
+        stripDescription d = case T.unpack $ T.strip $ T.pack d of
           "" -> Nothing
           trimmed -> Just $ Task trimmed False
     -- Set focus when the user enters a new Task
@@ -169,7 +169,7 @@ todoItem todo = do
             -- Put together all the ways the todo item can change itself
             changeSelf = mergeWith (>=>) [ fmap (\c t -> Just $ t { taskCompleted = c }) setCompleted
                                          , fmap (const $ const Nothing) destroy
-                                         , fmap (\d t -> case strip d of { "" -> Nothing ; trimmed -> Just $ t { taskDescription = trimmed } }) setDescription
+                                         , fmap (\d t -> case T.unpack $ T.strip $ T.pack d of { "" -> Nothing ; trimmed -> Just $ t { taskDescription = trimmed } }) setDescription
                                          ]
         -- Set focus on the edit box when we enter edit mode
         performEvent_ $ fmap (const $ liftIO $ void $ forkIO $ threadDelay 1000 >> elementFocus (_textInput_element editBox)) startEditing -- Without the delay, the focus doesn't take effect because the element hasn't become unhidden yet
