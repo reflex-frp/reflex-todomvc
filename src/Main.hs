@@ -172,7 +172,8 @@ todoItem todo = do
                                          , fmap (\d t -> case T.unpack $ T.strip $ T.pack d of { "" -> Nothing ; trimmed -> Just $ t { taskDescription = trimmed } }) setDescription
                                          ]
         -- Set focus on the edit box when we enter edit mode
-        performEvent_ $ fmap (const $ liftIO $ void $ forkIO $ threadDelay 1000 >> elementFocus (_textInput_element editBox)) startEditing -- Without the delay, the focus doesn't take effect because the element hasn't become unhidden yet
+        postGui <- askPostGui
+        performEvent_ $ fmap (const $ liftIO $ void $ forkIO $ threadDelay 1000 >> postGui (liftIO $ elementFocus $ _textInput_element editBox)) startEditing -- Without the delay, the focus doesn't take effect because the element hasn't become unhidden yet
         -- Determine the current editing state; initially false, but can be modified by various events
         editing <- holdDyn False $ leftmost [ fmap (const True) startEditing
                                             , fmap (const False) setDescription
