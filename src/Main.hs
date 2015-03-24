@@ -9,8 +9,7 @@ import Control.Monad.Trans
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Foldable
-import Data.Traversable
-import Data.Monoid (Monoid (..), (<>))
+import Data.Monoid ((<>))
 import Data.List (intercalate)
 import Data.FileEmbed
 import Control.Concurrent
@@ -38,8 +37,7 @@ insertNew_ v m = case Map.maxViewWithKey m of
   Just ((k, _), _) -> Map.insert (succ k) v m
 
 initialTasks :: Map Int Task
-initialTasks = --Map.empty
-  Map.fromList $ map (\n -> (n, Task ("Task #" <> show n) (even n))) $ [1..10]
+initialTasks = Map.empty
 
 --------------------------------------------------------------------------------
 -- Filters
@@ -144,8 +142,8 @@ todoItem :: MonadWidget t m
 todoItem todo = do
   description <- liftM nubDyn $ mapDyn taskDescription todo
   rec -- Construct the attributes for our element; use 
-      attrs <- combineDyn (\t e -> "class" =: intercalate " " ((if taskCompleted t then ["completed"] else []) <> (if e then ["editing"] else []))) todo editing
-      (editing, changeTodo) <- elDynAttr "li" attrs $ do
+      attrs <- combineDyn (\t e -> "class" =: intercalate " " ((if taskCompleted t then ["completed"] else []) <> (if e then ["editing"] else []))) todo editing'
+      (editing', changeTodo) <- elDynAttr "li" attrs $ do
         (setCompleted, destroy, startEditing) <- elAttr "div" ("class" =: "view") $ do
           -- Display the todo item's completed status, and allow it to be set
           completed <- liftM nubDyn $ mapDyn taskCompleted todo
@@ -157,7 +155,7 @@ todoItem todo = do
           (destroyButton, _) <- elAttr' "button" ("class" =: "destroy") $ return ()
           return (setCompleted, _el_clicked destroyButton, _el_clicked descriptionLabel)
         -- Set the current value of the editBox whenever we start editing (it's not visible in non-editing mode)
-        let setEditValue = tagDyn description $ ffilter id $ updated editing
+        let setEditValue = tagDyn description $ ffilter id $ updated editing'
         editBox <- input' "text" "" setEditValue $ constDyn $ "class" =: "edit" <> "name" =: "title"
         let -- Set the todo item's description when the user leaves the textbox or presses enter in it
             setDescription = tag (current $ _textInput_value editBox) $ leftmost
@@ -173,7 +171,7 @@ todoItem todo = do
                                          ]
         -- Set focus on the edit box when we enter edit mode
         postGui <- askPostGui
-        performEvent_ $ fmap (const $ liftIO $ void $ forkIO $ threadDelay 1000 >> postGui (liftIO $ elementFocus $ _textInput_element editBox)) startEditing -- Without the delay, the focus doesn't take effect because the element hasn't become unhidden yet
+        performEvent_ $ fmap (const $ liftIO $ void $ forkIO $ threadDelay 1000 >> postGui (liftIO $ elementFocus $ _textInput_element editBox)) startEditing -- Without the delay, the focus doesn't take effect because the element hasn't become unhidden yet; we need to use postGui to ensure that this is threadsafe when built with GTK
         -- Determine the current editing state; initially false, but can be modified by various events
         editing <- holdDyn False $ leftmost [ fmap (const True) startEditing
                                             , fmap (const False) setDescription
@@ -227,6 +225,3 @@ infoFooter = do
     el "p" $ do
       text "Part of "
       elAttr "a" ("href" =: "http://todomvc.com") $ text "TodoMVC"
-    (e, _) <- el' "p" $ do
-      text "performGC"
-    performEvent_ $ fmap (const $ liftIO performGC) $ _el_clicked e
