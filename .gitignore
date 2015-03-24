@@ -29,3 +29,5 @@ tags
 hsenv.log
 \#*#
 .#*
+src/Main
+*.jsexe
