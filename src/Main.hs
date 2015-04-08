@@ -85,11 +85,11 @@ taskEntry = do
   elAttr "header" ("class" =: "header") $ do
     -- Create the textbox; it will be cleared whenever the user presses enter
     rec let newValueEntered = ffilter (==keycodeEnter) (_textInput_keypress descriptionBox)
-        descriptionBox <- input' "text" "" (fmap (const "") newValueEntered) $ constDyn $ mconcat
-          [ "class" =: "new-todo"
-          , "placeholder" =: "What needs to be done?"
-          , "name" =: "newTodo"
-          ]
+        descriptionBox <- textInput $ def & setValue .~ fmap (const "") newValueEntered
+                                          & attributes .~ constDyn (mconcat [ "class" =: "new-todo"
+                                                                            , "placeholder" =: "What needs to be done?"
+                                                                            , "name" =: "newTodo"
+                                                                            ])
     -- Request focus on this element when the widget is done being built
     schedulePostBuild $ liftIO $ elementFocus $ _textInput_element descriptionBox
     let -- | Get the current value of the textbox whenever the user hits enter
@@ -154,7 +154,7 @@ todoItem todo = do
           return (setCompleted, _el_clicked destroyButton, _el_clicked descriptionLabel)
         -- Set the current value of the editBox whenever we start editing (it's not visible in non-editing mode)
         let setEditValue = tagDyn description $ ffilter id $ updated editing'
-        editBox <- input' "text" "" setEditValue $ constDyn $ "class" =: "edit" <> "name" =: "title"
+        editBox <- textInput $ def & setValue .~ setEditValue & attributes .~ constDyn ("class" =: "edit" <> "name" =: "title")
         let -- Set the todo item's description when the user leaves the textbox or presses enter in it
             setDescription = tag (current $ _textInput_value editBox) $ leftmost
               [ fmap (const ()) $ ffilter (==keycodeEnter) $ _textInput_keypress editBox
