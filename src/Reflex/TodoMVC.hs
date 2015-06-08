@@ -1,5 +1,5 @@
 {-# LANGUAGE RecursiveDo, ScopedTypeVariables, FlexibleContexts, TypeFamilies, ConstraintKinds, TemplateHaskell #-}
-module Main where
+module Reflex.TodoMVC where
 
 import Prelude hiding (mapM, mapM_, all, sequence)
 
@@ -60,7 +60,10 @@ satisfiesFilter f = case f of
 --------------------------------------------------------------------------------
 
 main :: IO ()
-main = mainWidgetWithCss $(embedFile "style.css") $ do
+main = mainWidgetWithCss $(embedFile "style.css") todoMVC
+
+todoMVC :: MonadWidget t m => m ()
+todoMVC = do
   elAttr "div" ("class" =: "todomvc-wrapper" <> "visibility" =: "hidden") $ do
     elAttr "section" ("class" =: "todoapp") $ do
       mainHeader

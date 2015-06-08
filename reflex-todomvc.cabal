@@ -9,12 +9,11 @@ Maintainer: ryan.trinkle@gmail.com
 Stability: Experimental
 Category: FRP
 Build-type: Simple
-Cabal-version: >=1.2
+Cabal-version: >=1.8
 
-executable reflex-todomvc
+library
   hs-source-dirs: src
-  main-is: Main.hs
-  build-depends:
+  build-depends: 
     base,
     reflex,
     ghcjs-dom,
@@ -23,7 +22,18 @@ executable reflex-todomvc
     file-embed,
     text,
     mtl
+  exposed-modules:
+    Reflex.TodoMVC
+  other-extensions: TemplateHaskell
+  ghc-prof-options: -fprof-auto
+  ghc-options: -threaded -Wall -fwarn-tabs -funbox-strict-fields -O2
 
+executable reflex-todomvc
+  hs-source-dirs: src-bin
+  main-is: main.hs
+  build-depends:
+    base,
+    reflex-todomvc
   other-extensions: TemplateHaskell
   ghc-prof-options: -fprof-auto
   ghc-options: -threaded -Wall -fwarn-tabs -funbox-strict-fields -O2
