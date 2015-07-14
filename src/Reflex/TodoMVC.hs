@@ -154,7 +154,7 @@ todoItem todo = do
           (descriptionLabel, _) <- el' "label" $ dynText description
           -- Display the button for deleting the todo item
           (destroyButton, _) <- elAttr' "button" ("class" =: "destroy") $ return ()
-          return (setCompleted, _el_clicked destroyButton, _el_clicked descriptionLabel)
+          return (setCompleted, domEvent Click destroyButton, domEvent Dblclick descriptionLabel)
         -- Set the current value of the editBox whenever we start editing (it's not visible in non-editing mode)
         let setEditValue = tagDyn description $ ffilter id $ updated editing'
         editBox <- textInput $ def & setValue .~ setEditValue & attributes .~ constDyn ("class" =: "edit" <> "name" =: "title")
@@ -200,7 +200,7 @@ controls tasks = do
           let filterButton f = el "li" $ do
                 buttonAttrs <- mapDyn (\af -> "class" =: (if f == af then "selected" else "")) activeFilter
                 (e, _) <- elDynAttr' "a" buttonAttrs $ text $ show f
-                return $ fmap (const f) (_el_clicked e)
+                return $ fmap (const f) (domEvent Click e)
           allButton <- filterButton All
           text " "
           activeButton <- filterButton Active
@@ -213,7 +213,7 @@ controls tasks = do
       , if n > 0 then mempty else "hidden" =: ""
       ]
     (clearCompletedAttrsButton, _) <- elDynAttr' "button" clearCompletedAttrs $ dynText =<< mapDyn (\n -> "Clear completed (" <> show n <> ")") tasksCompleted
-    return (activeFilter, _el_clicked clearCompletedAttrsButton)
+    return (activeFilter, domEvent Click clearCompletedAttrsButton)
 
 -- | Display static information about the application
 infoFooter :: MonadWidget t m => m ()
