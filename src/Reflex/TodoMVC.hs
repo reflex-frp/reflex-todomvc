@@ -64,7 +64,7 @@ main = mainWidgetWithCss $(embedFile "style.css") todoMVC
 
 todoMVC :: MonadWidget t m => m ()
 todoMVC = do
-  elAttr "div" ("class" =: "todomvc-wrapper" <> "visibility" =: "hidden") $ do
+  el "div" $ do
     elAttr "section" ("class" =: "todoapp") $ do
       mainHeader
       rec tasks <- foldDyn ($) initialTasks $ mergeWith (.)
@@ -85,7 +85,7 @@ mainHeader = el "h1" $ text "todos"
 -- | Display an input field; produce new Tasks when the user creates them
 taskEntry :: MonadWidget t m => m (Event t Task)
 taskEntry = do
-  elAttr "header" ("class" =: "header") $ do
+  el "header" $ do
     -- Create the textbox; it will be cleared whenever the user presses enter
     rec let newValueEntered = ffilter (==keycodeEnter) (_textInput_keypress descriptionBox)
         descriptionBox <- textInput $ def & setValue .~ fmap (const "") newValueEntered
