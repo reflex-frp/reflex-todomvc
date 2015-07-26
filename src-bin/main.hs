@@ -1,5 +1,3 @@
-module Main where
-
 import qualified Reflex.TodoMVC
 
 main :: IO ()
