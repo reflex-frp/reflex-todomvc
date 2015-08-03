@@ -94,7 +94,7 @@ taskEntry = do
                                                                             , "name" =: "newTodo"
                                                                             ])
     -- Request focus on this element when the widget is done being built
-    schedulePostBuild $ liftIO $ elementFocus $ _textInput_element descriptionBox
+    schedulePostBuild $ liftIO $ focus $ _textInput_element descriptionBox
     let -- | Get the current value of the textbox whenever the user hits enter
         newValue = tag (current $ _textInput_value descriptionBox) newValueEntered
         -- | Strip leading and trailing whitespace from the user's entry, and discard it if nothing remains
@@ -102,7 +102,7 @@ taskEntry = do
           "" -> Nothing
           trimmed -> Just $ Task trimmed False
     -- Set focus when the user enters a new Task
-    performEvent_ $ fmap (const $ liftIO $ elementFocus $ _textInput_element descriptionBox) newValueEntered
+    performEvent_ $ fmap (const $ liftIO $ focus $ _textInput_element descriptionBox) newValueEntered
     return $ fmapMaybe stripDescription newValue
 
 -- | Display the user's Tasks, subject to a Filter; return requested modifications to the Task list
@@ -172,7 +172,7 @@ todoItem todo = do
                                          ]
         -- Set focus on the edit box when we enter edit mode
         postGui <- askPostGui
-        performEvent_ $ fmap (const $ liftIO $ void $ forkIO $ threadDelay 1000 >> postGui (liftIO $ elementFocus $ _textInput_element editBox)) startEditing -- Without the delay, the focus doesn't take effect because the element hasn't become unhidden yet; we need to use postGui to ensure that this is threadsafe when built with GTK
+        performEvent_ $ fmap (const $ liftIO $ void $ forkIO $ threadDelay 1000 >> postGui (liftIO $ focus $ _textInput_element editBox)) startEditing -- Without the delay, the focus doesn't take effect because the element hasn't become unhidden yet; we need to use postGui to ensure that this is threadsafe when built with GTK
         -- Determine the current editing state; initially false, but can be modified by various events
         editing <- holdDyn False $ leftmost [ fmap (const True) startEditing
                                             , fmap (const False) setDescription
