@@ -34,11 +34,11 @@ instructions in
 and are in the root of try-reflex. Start a ghcjs environment:
 
 ```
-:~/dev/spikes/try-reflex$ ./work-on ghcjs reflex-todomvc
+:~/try-reflex$ ./work-on ghcjs reflex-todomvc
 If you have any trouble with this script, please submit an issue at
 https://github.com/ryantrinkle/try-reflex/issues
 
-[nix-shell:~/dev/spikes/try-reflex]$ cd reflex-todomvc/
+[nix-shell:~/try-reflex]$ cd reflex-todomvc/
 ```
 
 Build with ghcjs. We have to specify the `src` directory where the TodoMVC
@@ -46,7 +46,7 @@ library lives, while we build the Main module in `src-bin`. We also add
 a few options so `src-bin` only contains our source, not compiler output. 
 
 ```
-[nix-shell:~/dev/spikes/try-reflex/reflex-todomvc]$ ghcjs -isrc --make
+[nix-shell:~/try-reflex/reflex-todomvc]$ ghcjs -isrc --make
 -outputdir dist -o dist/main.jsexe src-bin/main.hs
 [2 of 2] Compiling Main             ( src-bin/main.hs, dist/Main.js_o )
 Linking dist/main.jsexe (Main,Reflex.TodoMVC)
@@ -59,17 +59,17 @@ For ghc the steps are virtually identical, except the output is
 `dist/main` instead of `dist/main.jsexe`. 
 
 ```
-:~/dev/spikes/try-reflex$ ./work-on ghc reflex-todomvc
+:~/try-reflex$ ./work-on ghc reflex-todomvc
 If you have any trouble with this script, please submit an issue at
 https://github.com/ryantrinkle/try-reflex/issues
 
-[nix-shell:~/dev/spikes/try-reflex]$ cd reflex-todomvc/
+[nix-shell:~/try-reflex]$ cd reflex-todomvc/
 ```
 
 Build with ghc. Like with ghcjs We have to specify the `src` directory. 
 
 ```
-[nix-shell:~/dev/spikes/try-reflex/reflex-todomvc]$ ghc -isrc --make
+[nix-shell:~/try-reflex/reflex-todomvc]$ ghc -isrc --make
 -outputdir dist -o dist/main src-bin/main.hs
 [2 of 2] Compiling Main             ( src-bin/main.hs, dist/Main.o )
 Linking dist/main ...
@@ -97,22 +97,22 @@ and are in the root of try-reflex. Start a ghcjs environment:
 You should see this prompt
 
 ```
-[nix-shell:~/dev/spikes/try-reflex]$
+[nix-shell:~/try-reflex]$
 ``` 
 
 Go into the reflex-todomvc directory, configure and build with ghcjs.
 
 ```
-[nix-shell:~/dev/spikes/try-reflex]$ cd reflex-todomvc/
+[nix-shell:~/try-reflex]$ cd reflex-todomvc/
 
-[nix-shell:~/dev/spikes/try-reflex/reflex-todomvc]$ cabal configure
+[nix-shell:~/try-reflex/reflex-todomvc]$ cabal configure
 --ghcjs
 Warning: The package list for 'hackage.haskell.org' is 42.0 days old.
 Run 'cabal update' to get the latest list of available packages.
 Resolving dependencies...
 Configuring reflex-todomvc-0.1...
 
-[nix-shell:~/dev/spikes/try-reflex/reflex-todomvc]$ cabal build
+[nix-shell:~/try-reflex/reflex-todomvc]$ cabal build
 Building reflex-todomvc-0.1...
 Preprocessing library reflex-todomvc-0.1...
 In-place registering reflex-todomvc-0.1...
