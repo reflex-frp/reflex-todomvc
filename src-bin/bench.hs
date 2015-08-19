@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell, RankNTypes, ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell, RankNTypes, ScopedTypeVariables, RecursiveDo #-}
 
 import qualified Reflex.TodoMVC as Todo
 
@@ -32,22 +32,47 @@ main :: IO ()
 main = mainWidgetWithCss $(embedFile "style.css") benchmarks
 
 
+
+todoWithHooks :: MonadWidget t m => Dynamic t Todo.Filter -> m (Map Int Todo.Task -> IO (), Map Int Todo.Task -> IO ())
+todoWithHooks activeFilter = do
+  
+    (removeTask, fireRemove) <- newEventWithFire
+    (addTask, fireAdd) <- newEventWithFire
+
+    rec 
+      tasks <- foldDyn ($) mempty $ mergeWith (.)
+                    [ mappend <$> addTask 
+                    , flip Map.difference <$> removeTask
+                    , listModifyTasks
+                    ]
+      listModifyTasks <- Todo.taskList activeFilter tasks
+        
+    return (fireAdd, fireRemove)
+
+newEventWithFire :: MonadWidget t m =>  m (Event t a, a -> IO ())
+newEventWithFire =  do
+  
+  postGui <- askPostGui
+  runWithActions <- askRunWithActions  
+  
+  (e, triggerRef) <- newEventWithTriggerRef
+  return (e, \a -> postGui $ mapM_ (\t -> runWithActions [t :=> a]) =<< readRef triggerRef)
+
+
+
 benchmarks :: forall t m. MonadWidget t m => m ()
 benchmarks = do
-  (testEvent, triggerRef) <- newEventWithTriggerRef
+  (testEvent, fireTest) <- newEventWithFire
 
-  done <- switchPromptlyDyn <$> widgetHold (return never) testEvent
+  setupComplete <- switchPromptlyDyn <$> widgetHold (return never) testEvent
   doneVar <- liftIO $ newEmptyMVar
   
-  performEvent_ $ liftIO . putMVar doneVar <$> done
-      
-  postGui <- askPostGui
-  runWithActions <- askRunWithActions      
-             
+  performEvent_ $ liftIO . putMVar doneVar <$> setupComplete
+                   
   let 
     runTest :: m (Event t ()) -> IO ()
     runTest test = do
-      postGui $ mapM_ (\t -> runWithActions [t :=> test]) =<< readRef triggerRef
+      fireTest test
       void $ takeMVar doneVar
 
 
