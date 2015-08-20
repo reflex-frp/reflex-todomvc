@@ -5,7 +5,7 @@ import qualified Reflex.TodoMVC as Todo
 import Reflex.Dom
 import Reflex.Host.Class
 
-import Control.Monad
+import Control.Monad 
 import Control.Monad.IO.Class
 import Control.Monad.Ref
 
@@ -33,21 +33,71 @@ main = mainWidgetWithCss $(embedFile "style.css") benchmarks
 
 
 
-todoWithHooks :: MonadWidget t m => Dynamic t Todo.Filter -> m (Map Int Todo.Task -> IO (), Map Int Todo.Task -> IO ())
-todoWithHooks activeFilter = do
-  
-    (removeTask, fireRemove) <- newEventWithFire
-    (addTask, fireAdd) <- newEventWithFire
 
+
+todoWithHooks :: MonadWidget t m => Event t (Map Int Todo.Task) ->  Event t (Map Int Todo.Task) -> Dynamic t Todo.Filter -> m (Event t Int)
+todoWithHooks addTask removeTask activeFilter = do
+  
     rec 
       tasks <- foldDyn ($) mempty $ mergeWith (.)
                     [ mappend <$> addTask 
                     , flip Map.difference <$> removeTask
-                    , listModifyTasks
                     ]
-      listModifyTasks <- Todo.taskList activeFilter tasks
+                    
+      (listModifyTasks, itemsAdded) <- Todo.taskList activeFilter tasks
+    return itemsAdded    
+    
+    
+testAdd :: forall t m. MonadWidget t m => Int -> m (Event t ())
+testAdd n = do
+  rec
+    tick <- todoWithHooks addTask never (constDyn Todo.All)
+    
+    postBuild <- getPostBuild
+    counter <- updated <$> count (leftmost [void tick, postBuild])
         
-    return (fireAdd, fireRemove)
+    let addTask = newTask <$> (ffilter (< n)) counter
+  return $ void $ ffilter (>= n) counter    
+  
+  where      
+    newTask i = Map.singleton i (Todo.Task ("task " ++ show i) (odd i))
+    
+
+testFilter :: forall t m. MonadWidget t m => Int -> Int -> m (Event t ())
+testFilter n repeats = do
+  rec
+    postBuild <- getPostBuild
+    tick <- todoWithHooks (taskList <$ postBuild) never filter
+        
+    counter <- updated <$> count (void tick)
+    filter <- holdDyn Todo.Active (filterNum <$> counter)
+        
+  return $ void $ ffilter (>= repeats) counter    
+  
+  where      
+    taskList = Map.fromList $ map (\i -> (i,  Todo.Task ("task " ++ show i) True)) [1..n]
+    filterNum i = if odd i then Todo.Active else Todo.Completed
+    
+    
+testModify :: forall t m. MonadWidget t m => Int -> m (Event t ())
+testModify n = do
+  rec
+    postBuild <- getPostBuild
+    tick <- todoWithHooks addEvent never (constDyn Todo.All)
+        
+    counter <- updated <$> count (void tick)
+    let addEvent = leftmost 
+          [ taskList <$ postBuild
+          , modifyTask <$> counter ]
+        
+  return $ void $ ffilter (>= n) counter    
+  
+  where      
+    taskList = Map.fromList $ map (\i -> (i,  Todo.Task ("task " ++ show i) True)) [1..n]
+    filterNum i = if odd i then Todo.Active else Todo.Completed    
+    
+    modifyTask i = Map.singleton i (Todo.Task ("task " ++ show i) False)
+
 
 newEventWithFire :: MonadWidget t m =>  m (Event t a, a -> IO ())
 newEventWithFire =  do
@@ -79,8 +129,12 @@ benchmarks = do
   void $ liftIO $ forkIO $ do 
     defaultMain 
       [ bench "creation" $ nfIO $ runTest (Todo.todoMVC >> getPostBuild)
+      , bench "add100" $ nfIO $ runTest (testAdd 100)
+      , bench "modify100" $ nfIO $ runTest (testModify 100)
+
+      , bench "filter100 x 50" $ nfIO $ runTest (testFilter 100 50)
       ]
-    
+
     Dom.postGUIAsync $ exitWith ExitSuccess
 
   

@@ -73,7 +73,7 @@ todoMVC = do
                      , fmap (const $ Map.filter $ not . taskCompleted) clearCompleted -- Call out the type and purpose of these things
                      ]
           newTask <- taskEntry
-          listModifyTasks <- taskList activeFilter tasks
+          (listModifyTasks, _) <- taskList activeFilter tasks
           (activeFilter, clearCompleted) <- controls tasks
       return ()
     infoFooter
@@ -109,7 +109,7 @@ taskEntry = do
 taskList :: (MonadWidget t m, Ord k, Show k)
          => Dynamic t Filter
          -> Dynamic t (Map k Task)
-         -> m (Event t (Map k Task -> Map k Task))
+         -> m (Event t (Map k Task -> Map k Task), Event t Int)
 taskList activeFilter tasks = elAttr "section" ("class" =: "main") $ do
   -- Create "toggle all" button
   toggleAllState <- mapDyn (all taskCompleted . Map.elems) tasks
@@ -132,9 +132,10 @@ taskList activeFilter tasks = elAttr "section" ("class" =: "main") $ do
   let itemChanges = switch $ current itemChangeEvent
       -- Change all items' completed state when the toggleAll button is clicked
       toggleAllChanges = fmap (\oldAllCompletedState -> fmap (\t -> t { taskCompleted = not oldAllCompletedState })) $ tag (current toggleAllState) toggleAll
-  return $ mergeWith (.) [ itemChanges
+  return ( mergeWith (.) [ itemChanges
                          , toggleAllChanges
-                         ]
+                         ] 
+         , Map.size <$> updated items)
 
 -- | Display an individual todo item
 todoItem :: MonadWidget t m
