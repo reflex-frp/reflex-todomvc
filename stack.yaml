@@ -13,7 +13,10 @@ resolver: lts-3.13
 # Local packages, usually specified by relative directory name
 packages:
 - '.'
-- ../reflex-dom
+- location:
+    git: git@github.com:ryantrinkle/reflex-dom.git
+    commit: f4dbdd799260bc203f7f5cdce18362cb896f6d57
+  extra-dep: true
 
 # Packages to be pulled from upstream that are not in the resolver (e.g., acme-missiles-0.3)
 extra-deps:
