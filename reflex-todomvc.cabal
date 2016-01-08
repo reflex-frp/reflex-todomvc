@@ -2,7 +2,7 @@ Name: reflex-todomvc
 Version: 0.1
 Synopsis: Functional Reactive TodoMVC
 Description: An implementation of the TodoMVC specification using the Reflex-DOM functional reactive DOM library
-License: AllRightsReserved
+License: BSD3
 License-file: LICENSE
 Author: Ryan Trinkle
 Maintainer: ryan.trinkle@gmail.com
