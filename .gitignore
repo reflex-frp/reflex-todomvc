@@ -31,3 +31,5 @@ hsenv.log
 .#*
 src/Main
 *.jsexe
+.stack-work
+
