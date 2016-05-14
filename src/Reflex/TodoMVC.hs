@@ -9,16 +9,12 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Foldable
 import Data.Monoid ((<>))
-import Data.List (intercalate)
 import Data.FileEmbed
 import Data.Text (Text)
 import qualified Data.Text as T
 
 import Reflex
 import Reflex.Dom
-import Reflex.Dom.Builder.Class
-import Reflex.Dom.Builder.Immediate
-import Reflex.Dom.PostBuild.Class
 
 --------------------------------------------------------------------------------
 -- Model
@@ -65,9 +61,7 @@ main :: IO ()
 main = mainWidgetWithCss $(embedFile "style.css") todoMVC
 
 todoMVC :: ( DomBuilder t m
-           , DomHandler m ~ GhcjsDomHandler
-           , DomHandler1 m ~ GhcjsDomHandler1
-           , RawEvent m ~ GhcjsDomEvent
+           , DomBuilderSpace m ~ GhcjsDomSpace
            , MonadFix m
            , MonadHold t m
            , PostBuild t m
@@ -101,7 +95,7 @@ stripDescription d =
      else Just trimmed
 
 -- | Display an input field; produce new Tasks when the user creates them
-taskEntry :: (DomBuilder t m, MonadFix m, PostBuild t m) => m (Event t Task)
+taskEntry :: (DomBuilder t m, MonadFix m, PostBuild t m, DomBuilderSpace m ~ GhcjsDomSpace) => m (Event t Task)
 taskEntry = do
   el "header" $ do
     -- Create the textbox; it will be cleared whenever the user presses enter
@@ -115,16 +109,14 @@ taskEntry = do
     -- Request focus on this element when the widget is done being built
 --    schedulePostBuild $ liftIO $ focus $ _textInput_element descriptionBox
     let -- | Get the current value of the textbox whenever the user hits enter
-        newValue = tag (fmap T.pack $ current $ _textInput_value descriptionBox) newValueEntered
+        newValue = tag (current $ _textInput_value descriptionBox) newValueEntered
     -- Set focus when the user enters a new Task
 --    performEvent_ $ fmap (const $ liftIO $ focus $ _textInput_element descriptionBox) newValueEntered
     return $ fmap (\d -> Task d False) $ fmapMaybe stripDescription newValue
 
 -- | Display the user's Tasks, subject to a Filter; return requested modifications to the Task list
 taskList :: ( DomBuilder t m
-            , DomHandler m ~ GhcjsDomHandler
-            , DomHandler1 m ~ GhcjsDomHandler1
-            , RawEvent m ~ GhcjsDomEvent
+            , DomBuilderSpace m ~ GhcjsDomSpace
             , PostBuild t m
             , MonadHold t m
             , MonadFix m
@@ -161,9 +153,7 @@ taskList activeFilter tasks = elAttr "section" ("class" =: "main") $ do
 
 -- | Display an individual todo item
 todoItem :: ( DomBuilder t m
-            , DomHandler m ~ GhcjsDomHandler
-            , DomHandler1 m ~ GhcjsDomHandler1
-            , RawEvent m ~ GhcjsDomEvent
+            , DomBuilderSpace m ~ GhcjsDomSpace
             , MonadFix m
             , MonadHold t m
             , PostBuild t m
@@ -173,7 +163,7 @@ todoItem :: ( DomBuilder t m
 todoItem todo = do
   description <- liftM nubDyn $ mapDyn taskDescription todo
   rec -- Construct the attributes for our element; use 
-      attrs <- combineDyn (\t e -> "class" =: intercalate " " ((if taskCompleted t then ["completed"] else []) <> (if e then ["editing"] else []))) todo editing'
+      attrs <- combineDyn (\t e -> "class" =: T.intercalate " " ((if taskCompleted t then ["completed"] else []) <> (if e then ["editing"] else []))) todo editing'
       (editing', changeTodo) <- elDynAttr "li" attrs $ do
         (setCompleted, destroy, startEditing) <- elAttr "div" ("class" =: "view") $ do
           -- Display the todo item's completed status, and allow it to be set
@@ -188,7 +178,7 @@ todoItem todo = do
         -- Set the current value of the editBox whenever we start editing (it's not visible in non-editing mode)
         let setEditValue = tagDyn description $ ffilter id $ updated editing'
         editBox <- textInput $ def
-          & textInputConfig_setValue .~ fmap T.unpack setEditValue
+          & textInputConfig_setValue .~ setEditValue
           & textInputConfig_attributes .~ constDyn ("class" =: "edit" <> "name" =: "title")
         let -- Set the todo item's description when the user leaves the textbox or presses enter in it
             setDescription = tag (current $ _textInput_value editBox) $ leftmost
@@ -200,7 +190,7 @@ todoItem todo = do
             -- Put together all the ways the todo item can change itself
             changeSelf = mergeWith (>=>) [ fmap (\c t -> Just $ t { taskCompleted = c }) setCompleted
                                          , fmap (const $ const Nothing) destroy
-                                         , fmap (\d t -> fmap (\trimmed -> t { taskDescription = trimmed }) $ stripDescription $ T.pack d) setDescription
+                                         , fmap (\d t -> fmap (\trimmed -> t { taskDescription = trimmed }) $ stripDescription d) setDescription
                                          ]
         -- Set focus on the edit box when we enter edit mode
 --        postGui <- askPostGui
