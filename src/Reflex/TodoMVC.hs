@@ -94,12 +94,15 @@ stripDescription d =
      then Nothing
      else Just trimmed
 
+keyCodeIs :: Key -> KeyCode -> Bool
+keyCodeIs k c = keyCodeLookup c == k
+
 -- | Display an input field; produce new Tasks when the user creates them
 taskEntry :: (DomBuilder t m, MonadFix m, PostBuild t m, DomBuilderSpace m ~ GhcjsDomSpace) => m (Event t Task)
 taskEntry = do
   el "header" $ do
     -- Create the textbox; it will be cleared whenever the user presses enter
-    rec let newValueEntered = ffilter (==keycodeEnter) (_textInput_keypress descriptionBox)
+    rec let newValueEntered = ffilter (keyCodeIs Enter) (_textInput_keypress descriptionBox)
         descriptionBox <- textInput $ def
           & textInputConfig_setValue .~ fmap (const "") newValueEntered
           & textInputConfig_attributes .~ constDyn (mconcat [ "class" =: "new-todo"
@@ -127,24 +130,24 @@ taskList :: ( DomBuilder t m
          -> m (Event t (Map k Task -> Map k Task))
 taskList activeFilter tasks = elAttr "section" ("class" =: "main") $ do
   -- Create "toggle all" button
-  toggleAllState <- mapDyn (all taskCompleted . Map.elems) tasks
-  toggleAllAttrs <- mapDyn (\t -> "class" =: "toggle-all" <> "name" =: "toggle" <> if Map.null t then "style" =: "visibility:hidden" else mempty) tasks
+  let toggleAllState = all taskCompleted . Map.elems <$> tasks
+      toggleAllAttrs = ffor tasks $ \t -> "class" =: "toggle-all" <> "name" =: "toggle" <> if Map.null t then "style" =: "visibility:hidden" else mempty
   toggleAll <- checkboxView toggleAllAttrs toggleAllState
   elAttr "label" ("for" =: "toggle-all") $ text "Mark all as complete"
   -- Filter the item list
-  visibleTasks <- combineDyn (Map.filter . satisfiesFilter) activeFilter tasks
+  let visibleTasks = zipDynWith (Map.filter . satisfiesFilter) activeFilter tasks
   -- Hide the item list itself if there are no items
-  itemListAttrs <- forDyn visibleTasks $ \t -> mconcat
-    [ "class" =: "todo-list"
-    , if Map.null t then "style" =: "visibility:hidden" else mempty
-    ]
+  let itemListAttrs = ffor visibleTasks $ \t -> mconcat
+        [ "class" =: "todo-list"
+        , if Map.null t then "style" =: "visibility:hidden" else mempty
+        ]
   -- Display the items
   items <- elDynAttr "ul" itemListAttrs $ do
     list visibleTasks todoItem
   -- Aggregate the changes produced by the elements
   let combineItemChanges = fmap (foldl' (.) id) . mergeList . map (\(k, v) -> fmap (flip Map.update k) v) . Map.toList
-  itemChangeEvent <- mapDyn combineItemChanges items
-  let itemChanges = switch $ current itemChangeEvent
+      itemChangeEvent = fmap combineItemChanges items
+      itemChanges = switch $ current itemChangeEvent
       -- Change all items' completed state when the toggleAll button is clicked
       toggleAllChanges = fmap (\oldAllCompletedState -> fmap (\t -> t { taskCompleted = not oldAllCompletedState })) $ tag (current toggleAllState) toggleAll
   return $ mergeWith (.) [ itemChanges
@@ -161,13 +164,13 @@ todoItem :: ( DomBuilder t m
          => Dynamic t Task
          -> m (Event t (Task -> Maybe Task))
 todoItem todo = do
-  description <- liftM nubDyn $ mapDyn taskDescription todo
-  rec -- Construct the attributes for our element; use 
-      attrs <- combineDyn (\t e -> "class" =: T.intercalate " " ((if taskCompleted t then ["completed"] else []) <> (if e then ["editing"] else []))) todo editing'
+  let description = uniqDyn $ fmap taskDescription todo
+  rec -- Construct the attributes for our element
+      let attrs = zipDynWith (\t e -> "class" =: T.intercalate " " ((if taskCompleted t then ["completed"] else []) <> (if e then ["editing"] else []))) todo editing'
       (editing', changeTodo) <- elDynAttr "li" attrs $ do
         (setCompleted, destroy, startEditing) <- elAttr "div" ("class" =: "view") $ do
           -- Display the todo item's completed status, and allow it to be set
-          completed <- liftM nubDyn $ mapDyn taskCompleted todo
+          let completed = uniqDyn $ fmap taskCompleted todo
           completedCheckbox <- checkboxView (constDyn $ "class" =: "toggle") completed
           let setCompleted = fmap not $ tag (current completed) completedCheckbox
           -- Display the todo item's name for viewing purposes
@@ -176,17 +179,17 @@ todoItem todo = do
           (destroyButton, _) <- elAttr' "button" ("class" =: "destroy") $ return ()
           return (setCompleted, domEvent Click destroyButton, domEvent Dblclick descriptionLabel)
         -- Set the current value of the editBox whenever we start editing (it's not visible in non-editing mode)
-        let setEditValue = tagDyn description $ ffilter id $ updated editing'
+        let setEditValue = tag (current description) $ ffilter id $ updated editing'
         editBox <- textInput $ def
           & textInputConfig_setValue .~ setEditValue
           & textInputConfig_attributes .~ constDyn ("class" =: "edit" <> "name" =: "title")
         let -- Set the todo item's description when the user leaves the textbox or presses enter in it
             setDescription = tag (current $ _textInput_value editBox) $ leftmost
-              [ fmap (const ()) $ ffilter (==keycodeEnter) $ _textInput_keypress editBox
+              [ fmap (const ()) $ ffilter (keyCodeIs Enter) $ _textInput_keypress editBox
               , fmap (const ()) $ ffilter not $ updated $ _textInput_hasFocus editBox
               ]
             -- Cancel editing (without changing the item's description) when the user presses escape in the textbox
-            cancelEdit = fmap (const ()) $ ffilter (==keycodeEscape) $ _textInput_keydown editBox
+            cancelEdit = fmap (const ()) $ ffilter (keyCodeIs Escape) $ _textInput_keydown editBox
             -- Put together all the ways the todo item can change itself
             changeSelf = mergeWith (>=>) [ fmap (\c t -> Just $ t { taskCompleted = c }) setCompleted
                                          , fmap (const $ const Nothing) destroy
@@ -208,19 +211,19 @@ todoItem todo = do
 controls :: (DomBuilder t m, PostBuild t m, MonadHold t m, MonadFix m) => Dynamic t (Map k Task) -> m (Dynamic t Filter, Event t ())
 controls tasks = do
   -- Determine the attributes for the footer; it is invisible when there are no todo items
-  controlsAttrs <- mapDyn (\t -> "class" =: "footer" <> if Map.null t then "style" =: "visibility:hidden" else mempty) tasks
+  let controlsAttrs = ffor tasks $ \t -> "class" =: "footer" <> if Map.null t then "style" =: "visibility:hidden" else mempty
   elDynAttr "footer" controlsAttrs $ do
     -- Compute the number of completed and uncompleted tasks
-    (tasksCompleted, tasksLeft) <- splitDyn <=< forDyn tasks $ \m ->
-      let completed = Map.size $ Map.filter taskCompleted m
-      in (completed, Map.size m - completed)
+    let (tasksCompleted, tasksLeft) = splitDynPure $ ffor tasks $ \m ->
+          let completed = Map.size $ Map.filter taskCompleted m
+          in (completed, Map.size m - completed)
     elAttr "span" ("class" =: "todo-count") $ do
-      el "strong" $ dynText =<< mapDyn (T.pack . show) tasksLeft
-      dynText =<< mapDyn (\n -> (if n == 1 then " item" else " items") <> " left") tasksLeft
+      el "strong" $ dynText $ fmap (T.pack . show) tasksLeft
+      dynText $ fmap (\n -> (if n == 1 then " item" else " items") <> " left") tasksLeft
     activeFilter <- elAttr "ul" ("class" =: "filters") $ do
       rec activeFilter <- holdDyn All setFilter
           let filterButton f = el "li" $ do
-                buttonAttrs <- mapDyn (\af -> "class" =: (if f == af then "selected" else "")) activeFilter
+                let buttonAttrs = ffor activeFilter $ \af -> "class" =: if f == af then "selected" else ""
                 (e, _) <- elDynAttr' "a" buttonAttrs $ text $ T.pack $ show f
                 return $ fmap (const f) (domEvent Click e)
           allButton <- filterButton All
@@ -230,11 +233,11 @@ controls tasks = do
           completedButton <- filterButton Completed
           let setFilter = leftmost [allButton, activeButton, completedButton]
       return activeFilter
-    clearCompletedAttrs <- flip mapDyn tasksCompleted $ \n -> mconcat
-      [ "class" =: "clear-completed"
-      , if n > 0 then mempty else "hidden" =: ""
-      ]
-    (clearCompletedAttrsButton, _) <- elDynAttr' "button" clearCompletedAttrs $ dynText =<< mapDyn (\n -> "Clear completed (" <> T.pack (show n) <> ")") tasksCompleted
+    let clearCompletedAttrs = ffor tasksCompleted $ \n -> mconcat
+          [ "class" =: "clear-completed"
+          , if n > 0 then mempty else "hidden" =: ""
+          ]
+    (clearCompletedAttrsButton, _) <- elDynAttr' "button" clearCompletedAttrs $ dynText $ ffor tasksCompleted $ \n -> "Clear completed (" <> T.pack (show n) <> ")"
     return (activeFilter, domEvent Click clearCompletedAttrsButton)
 
 -- | Display static information about the application
