@@ -1,4 +1,4 @@
-# TodoMVC in Reflex - [Try It!](http://financial-controller-dolly-10433.bitballoon.com/)
+# TodoMVC in Reflex - [Try It!](http://todomvc.reflex-frp.org/)
 
 All of the code lives in `src/Reflex/TodoMVC.hs`.
 `style.css` is embedded into the application.
