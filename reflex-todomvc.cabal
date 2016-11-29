@@ -12,10 +12,12 @@ Build-type: Simple
 Cabal-version: >=1.8
 
 benchmark bench-builder-all
+  if os(ios)
+    buildable: False
   type:             exitcode-stdio-1.0
   hs-source-dirs:   src-bin
   main-is:          bench.hs
-  build-depends:    
+  build-depends:
     base  >= 4.4 && < 5,
     reflex-todomvc,
     reflex,
@@ -24,38 +26,43 @@ benchmark bench-builder-all
     mtl,
     lens,
     ghcjs-dom,
-    file-embed,
     criterion,
     dependent-sum,
     transformers,
     ref-tf,
     text
-                    
+
   ghc-options: -threaded -Wall -fwarn-tabs -funbox-strict-fields -O2
 
 library
   hs-source-dirs: src
-  build-depends: 
+  build-depends:
     base,
     reflex,
-    ghcjs-dom == 0.2.*,
+    ghcjs-dom == 0.7.*,
     reflex-dom,
     containers,
-    file-embed,
     text,
     mtl
   exposed-modules:
     Reflex.TodoMVC
-  other-extensions: TemplateHaskell
   ghc-prof-options: -fprof-auto
   ghc-options:  -Wall -fwarn-tabs -funbox-strict-fields -O2
+  if os(ios)
+    build-depends:
+      jsaddle-wkwebview
+    exposed-modules:
+      Reflex.IOS
 
 executable reflex-todomvc
   hs-source-dirs: src-bin
   main-is: main.hs
   build-depends:
     base,
+    ghcjs-dom,
+    jsaddle-warp,
     reflex-todomvc
-  other-extensions: TemplateHaskell
   ghc-prof-options: -fprof-auto
   ghc-options: -threaded -Wall -fwarn-tabs -funbox-strict-fields -O2
+  if os(ios)
+    ghc-options: -staticlib -pgmlibtool libtool-quiet -stubdir .

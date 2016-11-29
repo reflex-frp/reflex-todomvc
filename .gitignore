@@ -33,3 +33,4 @@ src/Main
 *.jsexe
 .stack-work
 
+*.lkshf
