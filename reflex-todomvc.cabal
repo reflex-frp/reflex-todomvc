@@ -11,6 +11,10 @@ Category: FRP
 Build-type: Simple
 Cabal-version: >=1.8
 
+flag webkit2gtk
+  description: Use WebKit2 version of WebKitGTK.
+  default: True
+
 benchmark bench-builder-all
   if os(ios)
     buildable: False
@@ -61,6 +65,26 @@ executable reflex-todomvc
     base,
     ghcjs-dom,
     jsaddle-warp,
+    reflex-todomvc
+  ghc-prof-options: -fprof-auto
+  ghc-options: -threaded -Wall -fwarn-tabs -funbox-strict-fields -O2
+  if os(ios)
+    ghc-options: -staticlib -pgmlibtool libtool-quiet -stubdir .
+
+executable reflex-todomvc-webkitgtk
+  if os(ios) || impl(ghcjs)
+    buildable: False
+  hs-source-dirs: src-bin
+  main-is: webkitgtk.hs
+  if flag(webkit2gtk)
+    build-depends:
+      jsaddle-webkit2gtk
+  else
+    build-depends:
+      jsaddle-webkitgtk
+  build-depends:
+    base,
+    ghcjs-dom,
     reflex-todomvc
   ghc-prof-options: -fprof-auto
   ghc-options: -threaded -Wall -fwarn-tabs -funbox-strict-fields -O2
