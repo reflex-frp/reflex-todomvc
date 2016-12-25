@@ -15,7 +15,7 @@ benchmark bench-builder-all
   type:             exitcode-stdio-1.0
   hs-source-dirs:   src-bin
   main-is:          bench.hs
-  build-depends:    
+  build-depends:
     base  >= 4.4 && < 5,
     reflex-todomvc,
     reflex,
@@ -28,16 +28,17 @@ benchmark bench-builder-all
     criterion,
     dependent-sum,
     transformers,
-    ref-tf
-                    
+    ref-tf,
+    text
+
   ghc-options: -threaded -Wall -fwarn-tabs -funbox-strict-fields -O2
 
 library
   hs-source-dirs: src
-  build-depends: 
+  build-depends:
     base,
     reflex,
-    ghcjs-dom == 0.2.*,
+    ghcjs-dom,
     reflex-dom,
     containers,
     file-embed,
