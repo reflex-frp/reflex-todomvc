@@ -1,103 +1,94 @@
-{-# LANGUAGE TemplateHaskell, RankNTypes, ScopedTypeVariables, RecursiveDo #-}
+{-# LANGUAGE TemplateHaskell, OverloadedStrings, RankNTypes, ScopedTypeVariables, RecursiveDo, TypeFamilies, TypeOperators #-}
 
 import qualified Reflex.TodoMVC as Todo
 
 import Reflex.Dom
+import Reflex.Dom.Internal.Foreign
+import Reflex.Dom.Builder.Class
+import Reflex.Dom.Builder.Immediate
+import Reflex.Dom.PerformEvent.Class
+import Reflex.Dom.PerformEvent.Base
+import Reflex.Dom.PostBuild.Class
 import Reflex.Host.Class
+
+import qualified GHCJS.DOM as DOM
+import qualified GHCJS.DOM.Node as DOM
+import qualified GHCJS.DOM.Document as DOM
+import qualified GHCJS.DOM.Element as DOM
+import qualified GHCJS.DOM.HTMLElement as DOM
+import qualified GHCJS.DOM.HTMLDocument as DOM
 
 import Control.Monad 
 import Control.Monad.IO.Class
 import Control.Monad.Ref
+import Control.Monad.Fix
+import Control.Monad.Identity
+import Data.Monoid
+import qualified Data.Text as T
+import Data.IORef
+import Data.Functor.Compose
+import Data.Maybe
+import Data.Text.Encoding
+import Text.Read
+import System.Environment
 
 import Data.Dependent.Sum
 
 import Control.Concurrent
 
+import Data.FileEmbed
 import Data.Map (Map)
 import qualified Data.Map as Map
 
-import Data.FileEmbed
 import Criterion
 import Criterion.Main
 
 import System.Exit
 
 
-import qualified GHCJS.DOM as Dom
-
-main :: IO ()
-main = mainWidgetWithCss $(embedFile "style.css") benchmarks
-
-
 type TaskMap = Map Int Todo.Task
 
 initialTasks :: Int -> TaskMap
-initialTasks n = Map.fromList $ map (\i -> (i,  Todo.Task ("task " ++ show i) True)) [1..n]
+initialTasks n = Map.fromList $ map (\i -> (i,  Todo.Task ("task " <> T.pack (show i)) (even i))) [1..n]
 
 
-todoWithHooks :: MonadWidget t m => TaskMap -> Event t TaskMap ->  Event t TaskMap -> Dynamic t Todo.Filter -> m (Event t Int)
+todoWithHooks :: (DomBuilder t m, MonadFix m, MonadHold t m, PostBuild t m) => TaskMap -> Event t TaskMap ->  Event t TaskMap -> Dynamic t Todo.Filter -> m ()
 todoWithHooks initial addTask removeTask activeFilter = do
   
     rec 
-      tasks <- foldDyn ($) initial $ mergeWith (.)
+      {- tasks <- foldDyn ($) initial $ mergeWith (.)
                     [ mappend <$> addTask 
                     , flip Map.difference <$> removeTask
                     , listModifyTasks
-                    ]
+                    ] -}
                     
-      (listModifyTasks, itemsAdded) <- Todo.taskList activeFilter tasks
-      counter <- updated <$> count (void itemsAdded)
-    return counter    
+      (tasks, _) <- Todo.taskList activeFilter initial $ fmap (fmap Just) addTask
+    return ()
     
     
-testAdd :: forall t m. MonadWidget t m => Int -> m (Event t ())
-testAdd n = do
-  rec
-    counter <- todoWithHooks mempty addTask never (constDyn Todo.All)
-        
-    let addTask = newTask <$> (ffilter (< n)) counter
-  return $ void $ ffilter (>= n) counter    
-  
-  where      
-    newTask i = Map.singleton i (Todo.Task ("task " ++ show i) (odd i))
-    
+main :: IO ()
+main = do
+  [n] <- getArgs
+  Just numIterations <- return $ readMaybe n
+  runWebGUI $ \webView -> withWebViewSingleton webView $ \webViewSing -> do
+    Just doc <- liftM (fmap DOM.castToHTMLDocument) $ DOM.webViewGetDomDocument webView
+    Just rootElement <- DOM.getBody doc
+    Just headElement <- liftM (fmap DOM.castToHTMLElement) $ DOM.getHead doc
+    DOM.setInnerHTML headElement . Just $ "<style>" <> T.unpack (decodeUtf8 $(embedFile "style.css")) <> "</style>" --TODO: Fix this
+    (addTriggerRef, FireCommand fire) <- attachWidget' rootElement undefined $ do
+      (add, addTriggerRef) <- newEventWithTriggerRef
+      todoWithHooks mempty add never $ constDyn Todo.All
+      return addTriggerRef
+    runSpiderHost $ forM_ [1..numIterations] $ \i -> do
+      Just t <- liftIO $ readIORef addTriggerRef
+      fire [t :=> Identity (Map.singleton i (Todo.Task ("task " <> T.pack (show i)) (even i)))] $ return ()
+    quitWebView webView
+    return ()
 
-testFilter :: forall t m. MonadWidget t m => Int -> Int -> m (Event t ())
-testFilter n repeats = do
-  rec
-    counter <- todoWithHooks (initialTasks n) never never filter
-    filter <- holdDyn Todo.Active (filterNum <$> counter)
-  return $ void $ ffilter (>= repeats) counter    
-  
-  where      
-    filterNum i = if odd i then Todo.Active else Todo.Completed
-
-testCreate :: forall t m. MonadWidget t m => Int -> m (Event t ())
-testCreate n = void <$> todoWithHooks (initialTasks n) never never (constDyn Todo.All)
-    
-    
-testModify :: forall t m. MonadWidget t m => Int -> m (Event t ())
-testModify n = do
-  rec
-    counter <- todoWithHooks (initialTasks n) (modifyTask <$> counter) never (constDyn Todo.All)
-  return $ void $ ffilter (>= n) counter    
-  where      
-    modifyTask i = Map.singleton i (Todo.Task ("task " ++ show i) False)
-
-
-newEventWithFire :: MonadWidget t m =>  m (Event t a, a -> IO ())
-newEventWithFire =  do
-  
-  postGui <- askPostGui
-  runWithActions <- askRunWithActions  
-  
-  (e, triggerRef) <- newEventWithTriggerRef
-  return (e, \a -> postGui $ mapM_ (\t -> runWithActions [t :=> a]) =<< readRef triggerRef)
-
-
-benchmarks :: forall t m. MonadWidget t m => m ()
+{-
+benchmarks :: forall t m m'. (DomBuilder t m, MonadFix m, MonadHold t m, PostBuild t m, TriggerEvent t m, MonadIO m, PerformEvent t m' m, MonadIO m') => m ()
 benchmarks = do
-  (testEvent, fireTest) <- newEventWithFire
+  (testEvent, testEventTriggerRef) <- newEventWithTriggerRef
 
   setupComplete <- switchPromptlyDyn <$> widgetHold (return never) testEvent
   doneVar <- liftIO $ newEmptyMVar
@@ -110,7 +101,7 @@ benchmarks = do
       fireTest test
       void $ takeMVar doneVar
 
-    benchN n = bgroup ("n = " ++ show n) $
+    benchN n = bgroup ("n = " <> show n) $
       [ bench "create items" $ nfIO $ runTest (testCreate n)      
       , bench "add items (incremental)" $ nfIO $ runTest (testAdd n)
       , bench "modify items (incremental)" $ nfIO $ runTest (testModify n)
@@ -124,5 +115,6 @@ benchmarks = do
       , benchN 50
       ]
       
-    Dom.postGUIAsync $ exitWith ExitSuccess
+    DOM.postGUISync $ exitWith ExitSuccess
   
+-}
