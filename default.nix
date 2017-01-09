@@ -1,4 +1,4 @@
-{ mkDerivation, reflex, reflex-dom, file-embed
+{ mkDerivation, reflex, reflex-dom, file-embed, cabal-macosx
 }:
 
 mkDerivation {
@@ -11,6 +11,7 @@ mkDerivation {
     reflex
     reflex-dom
     file-embed
+    cabal-macosx
   ];
   license = null;
 }
