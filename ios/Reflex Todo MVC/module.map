@@ -1,0 +1,4 @@
+module Haskell [system] [extern_c] {
+    header "ios_stub.h"
+    export *
+}

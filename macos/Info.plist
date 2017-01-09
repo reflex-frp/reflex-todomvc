@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist SYSTEM "file://localhost/System/Library/DTDs/PropertyList.dtd">
+<plist version="0.9">
+<dict>
+<key>CFBundleInfoDictionaryVersion</key>
+<string>6.0</string>
+<key>CFBundleIdentifier</key>
+<string>org.haskell.reflex-todomvc</string>
+<key>CFBundleDevelopmentRegion</key>
+<string>en</string>
+<key>CFBundleExecutable</key>
+<string>reflex-todomvc-wkwebview</string>
+<key>CFBundleIconFile</key>
+<string></string>
+<key>CFBundleName</key>
+<string>reflex-todomvc</string>
+<key>CFBundlePackageType</key>
+<string>APPL</string>
+<key>CFBundleVersion</key>
+<string>1.0</string>
+<key>CFBundleShortVersionString</key>
+<string>1.0</string>
+<key>NSHumanReadableCopyright</key>
+<string>reflex-todomvc, bundled by cabal-macosx</string>
+<key>NSPrincipalClass</key>
+<string>NSApplication</string>
+</dict>
+</plist>
