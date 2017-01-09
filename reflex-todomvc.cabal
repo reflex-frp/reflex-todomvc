@@ -8,14 +8,37 @@ Author: Ryan Trinkle
 Maintainer: ryan.trinkle@gmail.com
 Stability: Experimental
 Category: FRP
-Build-type: Simple
+Build-type: Custom
 Cabal-version: >=1.8
 
+flag warp
+  description: Build relfex-todomvc-warp
+  default: True
+
+flag webkitgtk
+  description: Build relfex-todomvc-webkitgtk
+  default: True
+
+flag wkwebview
+  description: Build relfex-todomvc-wkwebview
+  default: True
+
+flag webkit2gtk
+  description: Use WebKit2 version of WebKitGTK.
+  default: True
+
+custom-setup
+  setup-depends: base >= 4.6,
+                 Cabal >= 1.24.2 && < 1.25,
+                 cabal-macosx >= 0.2.3.4 && < 0.3
+
 benchmark bench-builder-all
+  if os(ios)
+    buildable: False
   type:             exitcode-stdio-1.0
   hs-source-dirs:   src-bin
   main-is:          bench.hs
-  build-depends:    
+  build-depends:
     base  >= 4.4 && < 5,
     reflex-todomvc,
     reflex,
@@ -24,38 +47,74 @@ benchmark bench-builder-all
     mtl,
     lens,
     ghcjs-dom,
-    file-embed,
     criterion,
     dependent-sum,
     transformers,
     ref-tf,
     text
-                    
+
   ghc-options: -threaded -Wall -fwarn-tabs -funbox-strict-fields -O2
 
 library
   hs-source-dirs: src
-  build-depends: 
+  build-depends:
     base,
     reflex,
-    ghcjs-dom == 0.2.*,
-    reflex-dom,
+    ghcjs-dom == 0.7.*,
+    reflex-dom-core,
     containers,
-    file-embed,
     text,
     mtl
   exposed-modules:
     Reflex.TodoMVC
-  other-extensions: TemplateHaskell
   ghc-prof-options: -fprof-auto
   ghc-options:  -Wall -fwarn-tabs -funbox-strict-fields -O2
+  if os(ios)
+    build-depends:
+      jsaddle-wkwebview
+    exposed-modules:
+      Reflex.IOS
 
-executable reflex-todomvc
+executable reflex-todomvc-warp
+  if !flag(warp)
+    buildable: False
   hs-source-dirs: src-bin
   main-is: main.hs
   build-depends:
     base,
+    ghcjs-dom,
+    jsaddle-warp,
     reflex-todomvc
-  other-extensions: TemplateHaskell
+  ghc-prof-options: -fprof-auto
+  ghc-options: -threaded -Wall -fwarn-tabs -funbox-strict-fields -O2
+  if os(ios)
+    ghc-options: -staticlib -pgmlibtool libtool-quiet -stubdir .
+
+executable reflex-todomvc-webkitgtk
+  if !flag(webkitgtk) || impl(ghcjs) || os(ios)
+    buildable: False
+  hs-source-dirs: src-bin
+  main-is: webkitgtk.hs
+  if flag(webkit2gtk)
+    build-depends:
+      jsaddle-webkit2gtk
+  else
+    build-depends:
+      jsaddle-webkitgtk
+  build-depends:
+    base,
+    reflex-todomvc
+  ghc-prof-options: -fprof-auto
+  ghc-options: -threaded -Wall -fwarn-tabs -funbox-strict-fields -O2
+
+executable reflex-todomvc-wkwebview
+  if !flag(wkwebview) || !(os(osx) || os(ios)) || impl(ghcjs)
+    buildable: False
+  hs-source-dirs: src-bin
+  main-is: wkwebview.hs
+  build-depends:
+    base,
+    jsaddle-wkwebview,
+    reflex-todomvc
   ghc-prof-options: -fprof-auto
   ghc-options: -threaded -Wall -fwarn-tabs -funbox-strict-fields -O2
