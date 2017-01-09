@@ -11,6 +11,18 @@ Category: FRP
 Build-type: Custom
 Cabal-version: >=1.8
 
+flag warp
+  description: Build relfex-todomvc-warp
+  default: True
+
+flag webkitgtk
+  description: Build relfex-todomvc-webkitgtk
+  default: True
+
+flag wkwebview
+  description: Build relfex-todomvc-wkwebview
+  default: True
+
 flag webkit2gtk
   description: Use WebKit2 version of WebKitGTK.
   default: True
@@ -64,6 +76,8 @@ library
       Reflex.IOS
 
 executable reflex-todomvc-warp
+  if !flag(warp)
+    buildable: False
   hs-source-dirs: src-bin
   main-is: main.hs
   build-depends:
@@ -77,7 +91,7 @@ executable reflex-todomvc-warp
     ghc-options: -staticlib -pgmlibtool libtool-quiet -stubdir .
 
 executable reflex-todomvc-webkitgtk
-  if impl(ghcjs) || os(ios)
+  if !flag(webkitgtk) || impl(ghcjs) || os(ios)
     buildable: False
   hs-source-dirs: src-bin
   main-is: webkitgtk.hs
@@ -94,7 +108,7 @@ executable reflex-todomvc-webkitgtk
   ghc-options: -threaded -Wall -fwarn-tabs -funbox-strict-fields -O2
 
 executable reflex-todomvc-wkwebview
-  if !(os(osx) || os(ios)) || impl(ghcjs)
+  if !flag(wkwebview) || !(os(osx) || os(ios)) || impl(ghcjs)
     buildable: False
   hs-source-dirs: src-bin
   main-is: wkwebview.hs
