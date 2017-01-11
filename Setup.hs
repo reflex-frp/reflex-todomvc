@@ -1,7 +1,7 @@
 {-# LANGUAGE CPP #-}
 import Distribution.Simple
 
-#ifndef ghcjs_HOST_OS
+#if !defined(ghcjs_HOST_OS) && defined(MIN_VERSION_cabal_macosx)
 import Distribution.MacOSX
 
 guiApps :: [MacApp]
@@ -15,10 +15,10 @@ guiApps = [MacApp "reflex-todomvc-wkwebview"
 #endif
 
 main :: IO ()
-main = defaultMainWithHooks $ simpleUserHooks {
-#ifndef ghcjs_HOST_OS
-         postBuild = appBundleBuildHook guiApps,
-         postCopy = appBundleCopyHook guiApps
-#endif
+main = defaultMainWithHooks simpleUserHooks
+#if !defined(ghcjs_HOST_OS) && defined(MIN_VERSION_cabal_macosx)
+       { postBuild = appBundleBuildHook guiApps
+       , postCopy = appBundleCopyHook guiApps
        }
+#endif
 
