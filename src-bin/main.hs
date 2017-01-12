@@ -1,5 +1,5 @@
 import qualified Reflex.TodoMVC
-import Language.Javascript.JSaddle.Warp (run)
+import Reflex.Dom (run)
 
 main :: IO ()
-main = run 3702 Reflex.TodoMVC.main
+main = run Reflex.TodoMVC.main

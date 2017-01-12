@@ -5,7 +5,13 @@ import Distribution.Simple
 import Distribution.MacOSX
 
 guiApps :: [MacApp]
-guiApps = [MacApp "reflex-todomvc-wkwebview"
+guiApps = [ MacApp "reflex-todomvc"
+                  Nothing
+                  (Just "macos/Info.plist")
+                  [] -- No other resources.
+                  [] -- No other binaries.
+                  DoNotChase -- Try changing to ChaseWithDefaults
+          , MacApp "reflex-todomvc-wkwebview"
                   Nothing
                   (Just "macos/Info.plist")
                   [] -- No other resources.
