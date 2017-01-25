@@ -85,8 +85,6 @@ executable reflex-todomvc
     reflex-todomvc
   ghc-prof-options: -fprof-auto
   ghc-options: -threaded -Wall -fwarn-tabs -funbox-strict-fields -O2
-  if os(ios)
-    ghc-options: -staticlib -pgmlibtool libtool-quiet -stubdir .
 
 executable reflex-todomvc-warp
   if !flag(warp) || impl(ghcjs)
@@ -100,8 +98,6 @@ executable reflex-todomvc-warp
     reflex-todomvc
   ghc-prof-options: -fprof-auto
   ghc-options: -threaded -Wall -fwarn-tabs -funbox-strict-fields -O2
-  if os(ios)
-    ghc-options: -staticlib -pgmlibtool libtool-quiet -stubdir .
 
 executable reflex-todomvc-webkitgtk
   if !flag(webkitgtk) || impl(ghcjs) || os(ios)
