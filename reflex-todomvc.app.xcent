@@ -3,14 +3,14 @@
 <plist version="1.0">
 <dict>
 	<key>application-identifier</key>
-	<string>6B335P5EL8.Obsidian.reflex-todomvc</string>
+  <string><team-id/>.reflex-frp.reflex-todomvc</string>
 	<key>com.apple.developer.team-identifier</key>
-	<string>6B335P5EL8</string>
+  <string><team-id/></string>
 	<key>get-task-allow</key>
 	<true/>
 	<key>keychain-access-groups</key>
 	<array>
-		<string>6B335P5EL8.Obsidian.reflex-todomvc</string>
+    <string><team-id/>.reflex-frp.reflex-todomvc</string>
 	</array>
 </dict>
 </plist>
