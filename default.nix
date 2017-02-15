@@ -4,7 +4,7 @@
 mkDerivation {
   pname = "reflex-todomvc";
   version = "0.1";
-  src = builtins.filterSource (path: type: baseNameOf path != ".git") ./.;
+  src = builtins.filterSource (path: type: !(builtins.elem (baseNameOf path) [ ".git" "dist" ])) ./.;
   isExecutable = true;
   isLibrary = true;
   buildDepends = [
