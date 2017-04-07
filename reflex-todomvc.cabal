@@ -60,7 +60,7 @@ library
   build-depends:
     base,
     reflex,
-    ghcjs-dom == 0.7.*,
+    ghcjs-dom == 0.8.*,
     reflex-dom-core,
     containers,
     text,

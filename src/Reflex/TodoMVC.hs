@@ -105,7 +105,7 @@ taskEntry :: (DomBuilder t m, MonadFix m, PostBuild t m, DomBuilderSpace m ~ Ghc
 taskEntry = do
   el "header" $ do
     -- Create the textbox; it will be cleared whenever the user presses enter
-    rec let newValueEntered = ffilter (keyCodeIs Enter) (_textInput_keypress descriptionBox)
+    rec let newValueEntered = ffilter (keyCodeIs Enter . fromIntegral) (_textInput_keypress descriptionBox)
         descriptionBox <- textInput $ def
           & textInputConfig_setValue .~ fmap (const "") newValueEntered
           & textInputConfig_attributes .~ constDyn (mconcat [ "class" =: "new-todo"
@@ -188,11 +188,11 @@ todoItem todo = do
           & textInputConfig_attributes .~ constDyn ("class" =: "edit" <> "name" =: "title")
         let -- Set the todo item's description when the user leaves the textbox or presses enter in it
             setDescription = tag (current $ _textInput_value editBox) $ leftmost
-              [ fmap (const ()) $ ffilter (keyCodeIs Enter) $ _textInput_keypress editBox
+              [ fmap (const ()) $ ffilter (keyCodeIs Enter . fromIntegral) $ _textInput_keypress editBox
               , fmap (const ()) $ ffilter not $ updated $ _textInput_hasFocus editBox
               ]
             -- Cancel editing (without changing the item's description) when the user presses escape in the textbox
-            cancelEdit = fmap (const ()) $ ffilter (keyCodeIs Escape) $ _textInput_keydown editBox
+            cancelEdit = fmap (const ()) $ ffilter (keyCodeIs Escape . fromIntegral) $ _textInput_keydown editBox
             -- Put together all the ways the todo item can change itself
             changeSelf = mergeWith (>=>) [ fmap (\c t -> Just $ t { taskCompleted = c }) setCompleted
                                          , fmap (const $ const Nothing) destroy
