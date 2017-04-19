@@ -1,4 +1,5 @@
-{ mkDerivation, reflex, reflex-dom, file-embed, cabal-macosx, jsaddle-warp, jsaddle-webkit2gtk, jsaddle-wkwebview, ghc, stdenv, darwin, osx_sdk
+{ mkDerivation, reflex, reflex-dom, file-embed, cabal-macosx, jsaddle-warp, jsaddle-webkit2gtk, jsaddle-wkwebview, ghc, stdenv, darwin
+, buildPackages
 }:
 
 mkDerivation {
@@ -17,10 +18,9 @@ mkDerivation {
     jsaddle-wkwebview
 #    jsaddle-webkit2gtk
     jsaddle-warp
-    darwin.cctools
     darwin.libobjc
-    darwin.apple_sdk.libs.xpc
-    osx_sdk
+    buildPackages.darwin.apple_sdk.libs.xpc
+    buildPackages.osx_sdk
   ] else [
     jsaddle-webkit2gtk
     jsaddle-warp
