@@ -17,7 +17,6 @@ import GHCJS.DOM.Types (JSM)
 import Reflex
 import Reflex.Dom.Core
 import Data.Text.Encoding (encodeUtf8)
-import Debug.Trace (trace)
 
 --------------------------------------------------------------------------------
 -- Model
