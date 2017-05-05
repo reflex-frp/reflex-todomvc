@@ -25,5 +25,8 @@ mkDerivation {
     jsaddle-webkit2gtk
     jsaddle-warp
   ]);
+  postInstall = stdenv.lib.optionalString (ghc.isGhcjs or false) ''
+    rm "$out/bin/reflex-todomvc" # This is not designed to be run from node, so don't let it be
+  '';
   license = null;
 }
