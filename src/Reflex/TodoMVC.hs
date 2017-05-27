@@ -166,13 +166,13 @@ todoItem :: ( DomBuilder t m
          => Dynamic t Task
          -> m (Event t (Task -> Maybe Task))
 todoItem todo = do
-  let description = uniqDyn $ fmap taskDescription todo
+  description <- holdUniqDyn $ fmap taskDescription todo
   rec -- Construct the attributes for our element
       let attrs = zipDynWith (\t e -> "class" =: T.intercalate " " ((if taskCompleted t then ["completed"] else []) <> (if e then ["editing"] else []))) todo editing'
       (editing', changeTodo) <- elDynAttr "li" attrs $ do
         (setCompleted, destroy, startEditing) <- elAttr "div" ("class" =: "view") $ do
           -- Display the todo item's completed status, and allow it to be set
-          let completed = uniqDyn $ fmap taskCompleted todo
+          completed <- holdUniqDyn $ fmap taskCompleted todo
           completedCheckbox <- checkboxView (constDyn $ "class" =: "toggle") completed
           let setCompleted = fmap not $ tag (current completed) completedCheckbox
           -- Display the todo item's name for viewing purposes
