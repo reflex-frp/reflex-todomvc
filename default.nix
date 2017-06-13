@@ -26,7 +26,7 @@ mkDerivation {
     jsaddle-warp
   ]);
   postInstall = stdenv.lib.optionalString (ghc.isGhcjs or false) ''
-    rm "$out/bin/reflex-todomvc" # This is not designed to be run from node, so don't let it be
+    rm "$out/bin/reflex-todomvc" || true # This is not designed to be run from node, so don't let it be
   '';
   license = null;
 }
