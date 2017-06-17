@@ -16,11 +16,10 @@ mkDerivation {
   ] ++ (if ghc.isGhcjs or false then [
   ] else if stdenv.isDarwin then [
     jsaddle-wkwebview
-#    jsaddle-webkit2gtk
     jsaddle-warp
     darwin.libobjc
     buildPackages.darwin.apple_sdk.libs.xpc
-    buildPackages.osx_sdk
+    (buildPackages.osx_sdk or null)
   ] else [
     jsaddle-webkit2gtk
     jsaddle-warp
