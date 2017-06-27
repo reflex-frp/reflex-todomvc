@@ -484,16 +484,23 @@ css = " \
     \    transition: color 0.2s ease-out;\
     \}\
     \\
-    \.todo-list li .destroy:hover {\
+    \@media (any-pointer: fine) {\
+    \  .todo-list li .destroy:hover {\
     \    color: #af5b5e;\
+    \  }\
+    \  .todo-list li:hover .destroy {\
+    \    display: block;\
+    \  }\
+    \}\
+    \@media (any-pointer: coarse) {\
+    \  .todo-list li .destroy {\
+    \    color: #af5b5e;\
+    \    display: block;\
+    \  }\
     \}\
     \\
     \.todo-list li .destroy:after {\
     \    content: '×';\
-    \}\
-    \\
-    \.todo-list li:hover .destroy {\
-    \    display: block;\
     \}\
     \\
     \.todo-list li .edit {\
