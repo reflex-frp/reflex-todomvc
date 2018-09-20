@@ -14,12 +14,13 @@ mkDerivation {
     file-embed
     cabal-macosx
   ] ++ (if ghc.isGhcjs or false then [
-  ] else if stdenv.isDarwin then [
+  ] else if stdenv.hostPlatform.isiOS then [
     jsaddle-wkwebview
-    jsaddle-warp
-    darwin.libobjc
     buildPackages.darwin.apple_sdk.libs.xpc
     (buildPackages.osx_sdk or null)
+  ] else if stdenv.hostPlatform.isMacOS then [
+    jsaddle-wkwebview
+    jsaddle-warp
   ] else [
     jsaddle-webkit2gtk
     jsaddle-warp
