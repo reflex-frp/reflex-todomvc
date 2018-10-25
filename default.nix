@@ -8,11 +8,13 @@ mkDerivation {
   src = builtins.filterSource (path: type: !(builtins.elem (baseNameOf path) [ ".git" "dist" ])) ./.;
   isExecutable = true;
   isLibrary = true;
+  buildTools = [
+    cabal-macosx
+  ];
   buildDepends = [
     reflex
     reflex-dom
     file-embed
-    cabal-macosx
   ] ++ (if ghc.isGhcjs or false then [
   ] else if stdenv.hostPlatform.isiOS then [
     jsaddle-wkwebview
