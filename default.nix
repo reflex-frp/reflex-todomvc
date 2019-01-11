@@ -1,4 +1,4 @@
-{ mkDerivation, reflex, reflex-dom, file-embed, cabal-macosx, jsaddle-warp, jsaddle-webkit2gtk, jsaddle-wkwebview, ghc, stdenv, darwin
+{ mkDerivation, reflex, reflex-dom, reflex-dom-core, file-embed, cabal-macosx, jsaddle-wasm, jsaddle-warp, jsaddle-webkit2gtk, jsaddle-wkwebview, ghc, stdenv, darwin
 , buildPackages
 }:
 
@@ -13,9 +13,9 @@ mkDerivation {
   ];
   buildDepends = [
     reflex
-    reflex-dom
-    file-embed
-  ] ++ (if ghc.isGhcjs or false then [
+    reflex-dom-core
+  ] ++ stdenv.lib.optional (!stdenv.hostPlatform.isWasm) reflex-dom
+  ++ (if ghc.isGhcjs or false then [
   ] else if stdenv.hostPlatform.isiOS then [
     jsaddle-wkwebview
     buildPackages.darwin.apple_sdk.libs.xpc
@@ -23,6 +23,8 @@ mkDerivation {
   ] else if stdenv.hostPlatform.isMacOS then [
     jsaddle-wkwebview
     jsaddle-warp
+  ] else if stdenv.hostPlatform.isWasm then [
+    jsaddle-wasm
   ] else [
     jsaddle-webkit2gtk
     jsaddle-warp

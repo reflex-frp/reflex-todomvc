@@ -15,6 +15,10 @@ flag warp
   description: Build relfex-todomvc-warp
   default: True
 
+flag wasm
+  description: Build relfex-todomvc-wasm
+  default: False
+
 flag webkitgtk
   description: Build relfex-todomvc-webkitgtk
   default: True
@@ -76,6 +80,8 @@ library
       Reflex.IOS
 
 executable reflex-todomvc
+  if flag(wasm)
+    buildable: False
   hs-source-dirs: src-bin
   main-is: main.hs
   build-depends:
@@ -87,7 +93,7 @@ executable reflex-todomvc
   ghc-options: -threaded -Wall -fwarn-tabs -funbox-strict-fields -O2
 
 executable reflex-todomvc-warp
-  if !flag(warp) || impl(ghcjs)
+  if !flag(warp) || impl(ghcjs) || flag(wasm)
     buildable: False
   hs-source-dirs: src-bin
   main-is: warp.hs
@@ -100,7 +106,7 @@ executable reflex-todomvc-warp
   ghc-options: -threaded -Wall -fwarn-tabs -funbox-strict-fields -O2
 
 executable reflex-todomvc-webkitgtk
-  if !flag(webkitgtk) || impl(ghcjs) || os(ios)
+  if !flag(webkitgtk) || impl(ghcjs) || os(ios) || flag(wasm)
     buildable: False
   hs-source-dirs: src-bin
   main-is: webkitgtk.hs
@@ -117,7 +123,7 @@ executable reflex-todomvc-webkitgtk
   ghc-options: -threaded -Wall -fwarn-tabs -funbox-strict-fields -O2
 
 executable reflex-todomvc-wkwebview
-  if !flag(wkwebview) || !(os(osx) || os(ios)) || impl(ghcjs)
+  if !flag(wkwebview) || !(os(osx) || os(ios)) || impl(ghcjs) || flag(wasm)
     buildable: False
   hs-source-dirs: src-bin
   main-is: wkwebview.hs
@@ -127,3 +133,16 @@ executable reflex-todomvc-wkwebview
     reflex-todomvc
   ghc-prof-options: -fprof-auto
   ghc-options: -threaded -Wall -fwarn-tabs -funbox-strict-fields -O2
+
+executable reflex-todomvc-wasm
+  if !flag(wasm) || impl(ghcjs)
+    buildable: False
+  hs-source-dirs: src-bin
+  main-is: wasm.hs
+  build-depends:
+    base,
+    ghcjs-dom,
+    jsaddle-wasm,
+    reflex-todomvc
+  ghc-prof-options: -fprof-auto
+  ghc-options: -Wall -fwarn-tabs -funbox-strict-fields -O2
