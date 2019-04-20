@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, RecursiveDo, ScopedTypeVariables, FlexibleContexts, TypeFamilies, ConstraintKinds #-}
+{-# LANGUAGE OverloadedStrings, RecursiveDo, ScopedTypeVariables, FlexibleContexts, TypeFamilies, ConstraintKinds, LambdaCase #-}
 module Reflex.TodoMVC where
 
 import Prelude hiding (mapM, mapM_, all, sequence)
