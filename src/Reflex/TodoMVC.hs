@@ -11,6 +11,7 @@ import Data.Foldable
 import Data.Monoid ((<>))
 import Data.Text (Text)
 import qualified Data.Text as T
+import Data.List.NonEmpty (NonEmpty (..))
 
 import GHCJS.DOM.Types (JSM)
 
@@ -75,7 +76,7 @@ todoMVC = do
       mainHeader
       rec tasks <- foldDyn ($) initialTasks $ mergeWith (.)
                      [ fmap insertNew_ newTask
-                     , listModifyTasks
+                     , foldl' (.) id . fmap runTaskUpdate <$> listModifyTasks
                      , fmap (const $ Map.filter $ not . taskCompleted) clearCompleted -- Call out the type and purpose of these things
                      ]
           newTask <- taskEntry
@@ -119,6 +120,26 @@ taskEntry = do
 --    performEvent_ $ fmap (const $ liftIO $ focus $ _textInput_element descriptionBox) newValueEntered
     return $ fmap (\d -> Task d False) $ fmapMaybe stripDescription newValue
 
+data TaskUpdate k
+   = TaskUpdate_Single k SingleTaskUpdate
+   | TaskUpdate_SetAllCompleted Bool
+
+data SingleTaskUpdate
+   = SingleTaskUpdate_SetDescription Text
+   | SingleTaskUpdate_SetCompleted Bool
+   | SingleTaskUpdate_Delete
+
+runTaskUpdate :: Ord k => TaskUpdate k -> Map k Task -> Map k Task
+runTaskUpdate = \case
+  TaskUpdate_Single k u -> case u of
+    SingleTaskUpdate_SetCompleted completed ->
+      flip Map.update k $ Just . \t -> t { taskCompleted = completed }
+    SingleTaskUpdate_SetDescription description ->
+      flip Map.update k $ Just . \t -> t { taskDescription = description }
+    SingleTaskUpdate_Delete ->
+      flip Map.update k $ const Nothing
+  TaskUpdate_SetAllCompleted completed -> fmap (\t -> t { taskCompleted = completed })
+
 -- | Display the user's Tasks, subject to a Filter; return requested modifications to the Task list
 taskList :: ( DomBuilder t m
             , DomBuilderSpace m ~ GhcjsDomSpace
@@ -129,7 +150,7 @@ taskList :: ( DomBuilder t m
             )
          => Dynamic t Filter
          -> Dynamic t (Map k Task)
-         -> m (Event t (Map k Task -> Map k Task))
+         -> m (Event t (NonEmpty (TaskUpdate k)))
 taskList activeFilter tasks = elAttr "section" ("class" =: "main") $ do
   -- Create "toggle all" button
   let toggleAllState = all taskCompleted . Map.elems <$> tasks
@@ -147,14 +168,12 @@ taskList activeFilter tasks = elAttr "section" ("class" =: "main") $ do
   items <- elDynAttr "ul" itemListAttrs $ do
     list visibleTasks todoItem
   -- Aggregate the changes produced by the elements
-  let combineItemChanges = fmap (foldl' (.) id) . mergeList . map (\(k, v) -> fmap (flip Map.update k) v) . Map.toList
+  let combineItemChanges = mconcat . map (\(k, v) -> fmap (fmap (TaskUpdate_Single k)) v) . Map.toList
       itemChangeEvent = fmap combineItemChanges items
       itemChanges = switch $ current itemChangeEvent
       -- Change all items' completed state when the toggleAll button is clicked
-      toggleAllChanges = fmap (\oldAllCompletedState -> fmap (\t -> t { taskCompleted = not oldAllCompletedState })) $ tag (current toggleAllState) toggleAll
-  return $ mergeWith (.) [ itemChanges
-                         , toggleAllChanges
-                         ]
+      toggleAllChanges = fmap (\oldAllCompletedState -> (:|[]) $ TaskUpdate_SetAllCompleted $ not oldAllCompletedState) $ tag (current toggleAllState) toggleAll
+  return $ itemChanges <> toggleAllChanges
 
 -- | Display an individual todo item
 todoItem :: ( DomBuilder t m
@@ -164,7 +183,7 @@ todoItem :: ( DomBuilder t m
             , PostBuild t m
             )
          => Dynamic t Task
-         -> m (Event t (Task -> Maybe Task))
+         -> m (Event t (NonEmpty SingleTaskUpdate))
 todoItem todo = do
   description <- holdUniqDyn $ fmap taskDescription todo
   rec -- Construct the attributes for our element
@@ -193,10 +212,11 @@ todoItem todo = do
             -- Cancel editing (without changing the item's description) when the user presses escape in the textbox
             cancelEdit = fmap (const ()) $ ffilter (keyCodeIs Escape . fromIntegral) $ _textInput_keydown editBox
             -- Put together all the ways the todo item can change itself
-            changeSelf = mergeWith (>=>) [ fmap (\c t -> Just $ t { taskCompleted = c }) setCompleted
-                                         , fmap (const $ const Nothing) destroy
-                                         , fmap (\d t -> fmap (\trimmed -> t { taskDescription = trimmed }) $ stripDescription d) setDescription
-                                         ]
+            changeSelf = mergeList
+              [ SingleTaskUpdate_SetCompleted <$> setCompleted
+              , maybe SingleTaskUpdate_Delete SingleTaskUpdate_SetDescription . stripDescription <$> setDescription
+              , SingleTaskUpdate_Delete <$ destroy
+              ]
         -- Set focus on the edit box when we enter edit mode
 --        postGui <- askPostGui
 --        performEvent_ $ fmap (const $ liftIO $ void $ forkIO $ threadDelay 1000 >> postGui (liftIO $ focus $ _textInput_element editBox)) startEditing -- Without the delay, the focus doesn't take effect because the element hasn't become unhidden yet; we need to use postGui to ensure that this is threadsafe when built with GTK
