@@ -4,7 +4,7 @@
 let
   native-reflex-platform = reflex-platform-fun {};
   inherit (native-reflex-platform.nixpkgs) lib;
-  systems = ["x86_64-linux" "x86_64-darwin"];
+  systems = ["x86_64-linux"];
 
   perPlatform = lib.genAttrs systems (system: let
     reflex-platform = reflex-platform-fun { inherit system; };
@@ -21,7 +21,7 @@ let
       ghc' = reflex-platform.${ghc}.override {
         overrides = self: super: {
           reflex-dontUseTemplateHaskell = self.callPackage ./. { useTemplateHaskell = false; };
-          reflex = self.callPackage ./. { useTemplateHaskell = true; };
+          reflex-todomvc = self.callPackage ./. { useTemplateHaskell = true; };
         };
       };
     in {
