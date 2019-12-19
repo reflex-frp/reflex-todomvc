@@ -20,7 +20,7 @@ let
     hsPkgs = lib.genAttrs compilers (ghc: let
       ghc' = reflex-platform.${ghc}.override {
         overrides = self: super: {
-          reflex-todomvc = self.callPackage ./. { useTemplateHaskell = true; };
+          reflex-todomvc = self.callPackage ./. { };
         };
       };
     in {

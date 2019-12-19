@@ -1,5 +1,5 @@
 { mkDerivation, reflex, reflex-dom, file-embed, cabal-macosx, jsaddle-warp, jsaddle-webkit2gtk, jsaddle-wkwebview, ghc, stdenv, darwin
-, buildPackages, useTemplateHaskell ? true
+, buildPackages
 }:
 
 mkDerivation {
