@@ -1,4 +1,9 @@
-{-# LANGUAGE OverloadedStrings, RecursiveDo, ScopedTypeVariables, FlexibleContexts, TypeFamilies, ConstraintKinds #-}
+{-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecursiveDo #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies #-}
 module Reflex.TodoMVC where
 
 import Prelude hiding (mapM, mapM_, all, sequence)
@@ -62,27 +67,27 @@ satisfiesFilter f = case f of
 main :: JSM ()
 main = mainWidgetWithCss (encodeUtf8 css) todoMVC
 
-todoMVC :: ( DomBuilder t m
-           , DomBuilderSpace m ~ GhcjsDomSpace
-           , MonadFix m
-           , MonadHold t m
-           , PostBuild t m
-           )
-        => m ()
-todoMVC = do
-  el "div" $ do
-    elAttr "section" ("class" =: "todoapp") $ do
-      mainHeader
-      rec tasks <- foldDyn ($) initialTasks $ mergeWith (.)
-                     [ fmap insertNew_ newTask
-                     , listModifyTasks
-                     , fmap (const $ Map.filter $ not . taskCompleted) clearCompleted -- Call out the type and purpose of these things
-                     ]
-          newTask <- taskEntry
-          listModifyTasks <- taskList activeFilter tasks
-          (activeFilter, clearCompleted) <- controls tasks
-      return ()
-    infoFooter
+todoMVC
+  :: ( DomBuilder t m
+     , DomBuilderSpace m ~ GhcjsDomSpace
+     , MonadFix m
+     , MonadHold t m
+     , PostBuild t m
+     )
+  => m ()
+todoMVC = el "div" $ do
+  elAttr "section" ("class" =: "todoapp") $ do
+    mainHeader
+    rec tasks <- foldDyn ($) initialTasks $ mergeWith (.)
+                   [ fmap insertNew_ newTask
+                   , listModifyTasks
+                   , fmap (const $ Map.filter $ not . taskCompleted) clearCompleted -- Call out the type and purpose of these things
+                   ]
+        newTask <- taskEntry
+        listModifyTasks <- taskList activeFilter tasks
+        (activeFilter, clearCompleted) <- controls tasks
+    return ()
+  infoFooter
 
 -- | Display the main header
 mainHeader :: DomBuilder t m => m ()
@@ -100,9 +105,14 @@ keyCodeIs :: Key -> KeyCode -> Bool
 keyCodeIs k c = keyCodeLookup c == k
 
 -- | Display an input field; produce new Tasks when the user creates them
-taskEntry :: (DomBuilder t m, MonadFix m, PostBuild t m, DomBuilderSpace m ~ GhcjsDomSpace) => m (Event t Task)
-taskEntry = do
-  el "header" $ do
+taskEntry
+  :: ( DomBuilder t m
+     , MonadFix m
+     , PostBuild t m
+     , DomBuilderSpace m ~ GhcjsDomSpace
+     )
+  => m (Event t Task)
+taskEntry = el "header" $ do
     -- Create the textbox; it will be cleared whenever the user presses enter
     rec let newValueEntered = ffilter (keyCodeIs Enter . fromIntegral) (_textInput_keypress descriptionBox)
         descriptionBox <- textInput $ def
@@ -111,25 +121,26 @@ taskEntry = do
                                                             , "placeholder" =: "What needs to be done?"
                                                             , "name" =: "newTodo"
                                                             ])
-    -- Request focus on this element when the widget is done being built
---    schedulePostBuild $ liftIO $ focus $ _textInput_element descriptionBox
+    -- -- Request focus on this element when the widget is done being built
+    -- schedulePostBuild $ liftIO $ focus $ _textInput_element descriptionBox
     let -- | Get the current value of the textbox whenever the user hits enter
         newValue = tag (current $ _textInput_value descriptionBox) newValueEntered
-    -- Set focus when the user enters a new Task
---    performEvent_ $ fmap (const $ liftIO $ focus $ _textInput_element descriptionBox) newValueEntered
+    -- -- Set focus when the user enters a new Task
+    -- performEvent_ $ fmap (const $ liftIO $ focus $ _textInput_element descriptionBox) newValueEntered
     return $ fmap (\d -> Task d False) $ fmapMaybe stripDescription newValue
 
 -- | Display the user's Tasks, subject to a Filter; return requested modifications to the Task list
-taskList :: ( DomBuilder t m
-            , DomBuilderSpace m ~ GhcjsDomSpace
-            , PostBuild t m
-            , MonadHold t m
-            , MonadFix m
-            , Ord k
-            )
-         => Dynamic t Filter
-         -> Dynamic t (Map k Task)
-         -> m (Event t (Map k Task -> Map k Task))
+taskList
+  :: ( DomBuilder t m
+     , DomBuilderSpace m ~ GhcjsDomSpace
+     , PostBuild t m
+     , MonadHold t m
+     , MonadFix m
+     , Ord k
+     )
+  => Dynamic t Filter
+  -> Dynamic t (Map k Task)
+  -> m (Event t (Map k Task -> Map k Task))
 taskList activeFilter tasks = elAttr "section" ("class" =: "main") $ do
   -- Create "toggle all" button
   let toggleAllState = all taskCompleted . Map.elems <$> tasks
@@ -144,8 +155,7 @@ taskList activeFilter tasks = elAttr "section" ("class" =: "main") $ do
         , if Map.null t then "style" =: "visibility:hidden" else mempty
         ]
   -- Display the items
-  items <- elDynAttr "ul" itemListAttrs $ do
-    list visibleTasks todoItem
+  items <- elDynAttr "ul" itemListAttrs $ list visibleTasks todoItem
   -- Aggregate the changes produced by the elements
   let combineItemChanges = fmap (foldl' (.) id) . mergeList . map (\(k, v) -> fmap (flip Map.update k) v) . Map.toList
       itemChangeEvent = fmap combineItemChanges items
@@ -156,30 +166,49 @@ taskList activeFilter tasks = elAttr "section" ("class" =: "main") $ do
                          , toggleAllChanges
                          ]
 
+buildCompletedCheckbox
+  :: ( DomBuilder t m
+     , DomBuilderSpace m ~ GhcjsDomSpace
+     , MonadFix m
+     , MonadHold t m
+     , PostBuild t m
+     )
+  => Dynamic t Task
+  -> Dynamic t Text
+  -> m (Event t Bool, Event t (), Event t ())
+buildCompletedCheckbox todo description = elAttr "div" ("class" =: "view") $ do
+  -- Display the todo item's completed status, and allow it to be set
+  completed <- holdUniqDyn $ fmap taskCompleted todo
+  completedCheckbox <- checkboxView (constDyn $ "class" =: "toggle") completed
+  let setCompleted = fmap not $ tag (current completed) completedCheckbox
+  -- Display the todo item's name for viewing purposes
+  (descriptionLabel, _) <- el' "label" $ dynText description
+  -- Display the button for deleting the todo item
+  (destroyButton, _) <- elAttr' "button" ("class" =: "destroy") $ return ()
+  return ( setCompleted
+         , domEvent Click destroyButton
+         , void $ domEvent Dblclick descriptionLabel
+         )
+
 -- | Display an individual todo item
-todoItem :: ( DomBuilder t m
-            , DomBuilderSpace m ~ GhcjsDomSpace
-            , MonadFix m
-            , MonadHold t m
-            , PostBuild t m
-            )
-         => Dynamic t Task
-         -> m (Event t (Task -> Maybe Task))
+todoItem
+  :: ( DomBuilder t m
+     , DomBuilderSpace m ~ GhcjsDomSpace
+     , MonadFix m
+     , MonadHold t m
+     , PostBuild t m
+     )
+  => Dynamic t Task
+  -> m (Event t (Task -> Maybe Task))
 todoItem todo = do
   description <- holdUniqDyn $ fmap taskDescription todo
   rec -- Construct the attributes for our element
-      let attrs = zipDynWith (\t e -> "class" =: T.intercalate " " ((if taskCompleted t then ["completed"] else []) <> (if e then ["editing"] else []))) todo editing'
+      let attrs = ffor2 todo editing' $ \t e -> Map.singleton "class" $ T.unwords $ concat
+            [ [ "completed" | taskCompleted t ]
+            , [ "editing" | e ]
+            ]
       (editing', changeTodo) <- elDynAttr "li" attrs $ do
-        (setCompleted, destroy, startEditing) <- elAttr "div" ("class" =: "view") $ do
-          -- Display the todo item's completed status, and allow it to be set
-          completed <- holdUniqDyn $ fmap taskCompleted todo
-          completedCheckbox <- checkboxView (constDyn $ "class" =: "toggle") completed
-          let setCompleted = fmap not $ tag (current completed) completedCheckbox
-          -- Display the todo item's name for viewing purposes
-          (descriptionLabel, _) <- el' "label" $ dynText description
-          -- Display the button for deleting the todo item
-          (destroyButton, _) <- elAttr' "button" ("class" =: "destroy") $ return ()
-          return (setCompleted, domEvent Click destroyButton, domEvent Dblclick descriptionLabel)
+        (setCompleted, destroy, startEditing) <- buildCompletedCheckbox todo description
         -- Set the current value of the editBox whenever we start editing (it's not visible in non-editing mode)
         let setEditValue = tag (current description) $ ffilter id $ updated editing'
         editBox <- textInput $ def
@@ -187,11 +216,11 @@ todoItem todo = do
           & textInputConfig_attributes .~ constDyn ("class" =: "edit" <> "name" =: "title")
         let -- Set the todo item's description when the user leaves the textbox or presses enter in it
             setDescription = tag (current $ _textInput_value editBox) $ leftmost
-              [ fmap (const ()) $ ffilter (keyCodeIs Enter . fromIntegral) $ _textInput_keypress editBox
-              , fmap (const ()) $ ffilter not $ updated $ _textInput_hasFocus editBox
+              [ void $ ffilter (keyCodeIs Enter . fromIntegral) $ _textInput_keypress editBox
+              , void $ ffilter not $ updated $ _textInput_hasFocus editBox
               ]
             -- Cancel editing (without changing the item's description) when the user presses escape in the textbox
-            cancelEdit = fmap (const ()) $ ffilter (keyCodeIs Escape . fromIntegral) $ _textInput_keydown editBox
+            cancelEdit = void $ ffilter (keyCodeIs Escape . fromIntegral) $ _textInput_keydown editBox
             -- Put together all the ways the todo item can change itself
             changeSelf = mergeWith (>=>) [ fmap (\c t -> Just $ t { taskCompleted = c }) setCompleted
                                          , fmap (const $ const Nothing) destroy
@@ -209,8 +238,36 @@ todoItem todo = do
   -- Return an event that fires whenever we change ourselves
   return changeTodo
 
+buildActiveFilter
+  :: ( DomBuilder t m
+     , PostBuild t m
+     , MonadHold t m
+     , MonadFix m
+     )
+  => m (Dynamic t Filter)
+buildActiveFilter = elAttr "ul" ("class" =: "filters") $ do
+  rec activeFilter <- holdDyn All setFilter
+      let filterButton f = el "li" $ do
+            let buttonAttrs = ffor activeFilter $ \af -> "class" =: if f == af then "selected" else ""
+            (e, _) <- elDynAttr' "a" buttonAttrs $ text $ T.pack $ show f
+            return $ fmap (const f) (domEvent Click e)
+      allButton <- filterButton All
+      text " "
+      activeButton <- filterButton Active
+      text " "
+      completedButton <- filterButton Completed
+      let setFilter = leftmost [allButton, activeButton, completedButton]
+  return activeFilter
+
 -- | Display the control footer; return the user's currently-selected filter and an event that fires when the user chooses to clear all completed events
-controls :: (DomBuilder t m, PostBuild t m, MonadHold t m, MonadFix m) => Dynamic t (Map k Task) -> m (Dynamic t Filter, Event t ())
+controls
+  :: ( DomBuilder t m
+     , PostBuild t m
+     , MonadHold t m
+     , MonadFix m
+     )
+  => Dynamic t (Map k Task)
+  -> m (Dynamic t Filter, Event t ())
 controls tasks = do
   -- Determine the attributes for the footer; it is invisible when there are no todo items
   let controlsAttrs = ffor tasks $ \t -> "class" =: "footer" <> if Map.null t then "style" =: "visibility:hidden" else mempty
@@ -222,19 +279,7 @@ controls tasks = do
     elAttr "span" ("class" =: "todo-count") $ do
       el "strong" $ dynText $ fmap (T.pack . show) tasksLeft
       dynText $ fmap (\n -> (if n == 1 then " item" else " items") <> " left") tasksLeft
-    activeFilter <- elAttr "ul" ("class" =: "filters") $ do
-      rec activeFilter <- holdDyn All setFilter
-          let filterButton f = el "li" $ do
-                let buttonAttrs = ffor activeFilter $ \af -> "class" =: if f == af then "selected" else ""
-                (e, _) <- elDynAttr' "a" buttonAttrs $ text $ T.pack $ show f
-                return $ fmap (const f) (domEvent Click e)
-          allButton <- filterButton All
-          text " "
-          activeButton <- filterButton Active
-          text " "
-          completedButton <- filterButton Completed
-          let setFilter = leftmost [allButton, activeButton, completedButton]
-      return activeFilter
+    activeFilter <- buildActiveFilter
     let clearCompletedAttrs = ffor tasksCompleted $ \n -> mconcat
           [ "class" =: "clear-completed"
           , if n > 0 then mempty else "hidden" =: ""
@@ -244,15 +289,14 @@ controls tasks = do
 
 -- | Display static information about the application
 infoFooter :: DomBuilder t m => m ()
-infoFooter = do
-  elAttr "footer" ("class" =: "info") $ do
-    el "p" $ text "Click to edit a todo"
-    el "p" $ do
-      text "Written by "
-      elAttr "a" ("href" =: "https://github.com/ryantrinkle") $ text "Ryan Trinkle"
-    el "p" $ do
-      text "Part of "
-      elAttr "a" ("href" =: "http://todomvc.com") $ text "TodoMVC"
+infoFooter = elAttr "footer" ("class" =: "info") $ do
+  el "p" $ text "Click to edit a todo"
+  el "p" $ do
+    text "Written by "
+    elAttr "a" ("href" =: "https://github.com/ryantrinkle") $ text "Ryan Trinkle"
+  el "p" $ do
+    text "Part of "
+    elAttr "a" ("href" =: "http://todomvc.com") $ text "TodoMVC"
 
 css :: Text
 css = "\

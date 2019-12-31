@@ -29,7 +29,7 @@ flag webkit2gtk
 
 custom-setup
   setup-depends: base >= 4.6,
-                 Cabal >= 1.24.2 && < 1.25,
+                 Cabal >= 1.24.2 && < 3,
                  cabal-macosx >= 0.2.3.4 && < 0.3
 
 benchmark bench-builder-all
