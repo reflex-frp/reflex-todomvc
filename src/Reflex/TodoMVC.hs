@@ -161,7 +161,7 @@ buildCompletedCheckbox
      , PostBuild t m
      )
   => Dynamic t Task
-  -> Dynamic t String
+  -> Dynamic t Text
   -> m (Event t Bool, Event t (), Event t ())
 buildCompletedCheckbox todo description = elAttr "div" ("class" =: "view") $ do
   -- Display the todo item's completed status, and allow it to be set
@@ -172,15 +172,10 @@ buildCompletedCheckbox todo description = elAttr "div" ("class" =: "view") $ do
   (descriptionLabel, _) <- el' "label" $ dynText description
   -- Display the button for deleting the todo item
   (destroyButton, _) <- elAttr' "button" ("class" =: "destroy") $ return ()
-  return (setCompleted, domEvent Click destroyButton, domEvent Dblclick descriptionLabel)
-
--- | Joins the active CSS classes
-classesIf :: [(String, Bool)] -> String
-classesIf = unwords . foldr ((++) . uncurry classIf) []
-
-classIf :: String -> Bool -> [String]
-classIf clazz True  = [clazz]
-classIf _     False = []
+  return ( setCompleted
+         , domEvent Click destroyButton
+         , void $ domEvent Dblclick descriptionLabel
+         )
 
 -- | Display an individual todo item
 todoItem :: ( DomBuilder t m
@@ -194,12 +189,11 @@ todoItem :: ( DomBuilder t m
 todoItem todo = do
   description <- holdUniqDyn $ fmap taskDescription todo
   rec -- Construct the attributes for our element
-      let classes e = (
+      let attrs = ffor2 todo editing' $ \t e -> "class" =: T.unwords
             [ cls
             | (cls, use) <- [("completed", taskCompleted t), ("editing", e)]
             , use
             ]
-      let attrs = zipDynWith (\t e -> "class" =: unwords (classes e)) todo editing'
       (editing', changeTodo) <- elDynAttr "li" attrs $ do
         (setCompleted, destroy, startEditing) <- buildCompletedCheckbox todo description
         -- Set the current value of the editBox whenever we start editing (it's not visible in non-editing mode)
