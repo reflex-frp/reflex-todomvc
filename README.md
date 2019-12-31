@@ -6,7 +6,7 @@ All of the code lives in `src/Reflex/TodoMVC.hs`.
 ## Build Instructions
 
 ```bash
-nix-build
+nix-build -E '(import dep/reflex-platform {}).ghcjs.callPackage ./. {}'
 cd result/bin/reflex-todomvc.jsexe
 ```
 

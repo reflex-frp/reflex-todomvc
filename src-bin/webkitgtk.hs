@@ -1,5 +1,5 @@
 import qualified Reflex.TodoMVC
-import Reflex.Dom (run)
+import Language.Javascript.JSaddle.WebKitGTK (run)
 
 main :: IO ()
 main = run Reflex.TodoMVC.main

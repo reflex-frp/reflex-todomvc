@@ -1,5 +1,5 @@
 import qualified Reflex.TodoMVC
-import Reflex.Dom (run)
+import Language.Javascript.JSaddle.WKWebView (run)
 
 main :: IO ()
 main = run Reflex.TodoMVC.main
