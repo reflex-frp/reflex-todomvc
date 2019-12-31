@@ -121,11 +121,11 @@ taskEntry = el "header" $ do
                                                             , "placeholder" =: "What needs to be done?"
                                                             , "name" =: "newTodo"
                                                             ])
-    -- Request focus on this element when the widget is done being built
+    -- -- Request focus on this element when the widget is done being built
     -- schedulePostBuild $ liftIO $ focus $ _textInput_element descriptionBox
     let -- | Get the current value of the textbox whenever the user hits enter
         newValue = tag (current $ _textInput_value descriptionBox) newValueEntered
-    -- Set focus when the user enters a new Task
+    -- -- Set focus when the user enters a new Task
     -- performEvent_ $ fmap (const $ liftIO $ focus $ _textInput_element descriptionBox) newValueEntered
     return $ fmap (\d -> Task d False) $ fmapMaybe stripDescription newValue
 
