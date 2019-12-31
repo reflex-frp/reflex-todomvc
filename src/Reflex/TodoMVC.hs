@@ -155,7 +155,7 @@ taskList activeFilter tasks = elAttr "section" ("class" =: "main") $ do
         , if Map.null t then "style" =: "visibility:hidden" else mempty
         ]
   -- Display the items
-  items <- elDynAttr "ul" itemListAttrs (list visibleTasks todoItem)
+  items <- elDynAttr "ul" itemListAttrs $ list visibleTasks todoItem
   -- Aggregate the changes produced by the elements
   let combineItemChanges = fmap (foldl' (.) id) . mergeList . map (\(k, v) -> fmap (flip Map.update k) v) . Map.toList
       itemChangeEvent = fmap combineItemChanges items
