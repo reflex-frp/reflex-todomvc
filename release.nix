@@ -24,7 +24,7 @@ let
         };
       };
     in {
-      inherit (ghc') reflex;
+      inherit (ghc') reflex-todomvc;
     });
   in hsPkgs // {
     cache = reflex-platform.pinBuildInputs "reflex-${system}"
