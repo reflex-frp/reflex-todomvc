@@ -4,7 +4,7 @@
 let
   native-reflex-platform = reflex-platform-fun {};
   inherit (native-reflex-platform.nixpkgs) lib;
-  systems = ["x86_64-linux"];
+  systems = [ "x86_64-linux" "x86_64-darwin" ];
 
   perPlatform = lib.genAttrs systems (system: let
     reflex-platform = reflex-platform-fun { inherit system; };
