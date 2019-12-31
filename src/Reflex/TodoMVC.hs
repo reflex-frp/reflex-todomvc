@@ -1,4 +1,9 @@
-{-# LANGUAGE OverloadedStrings, RecursiveDo, ScopedTypeVariables, FlexibleContexts, TypeFamilies, ConstraintKinds #-}
+{-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecursiveDo #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies #-}
 module Reflex.TodoMVC where
 
 import Prelude hiding (mapM, mapM_, all, sequence)
@@ -62,13 +67,14 @@ satisfiesFilter f = case f of
 main :: JSM ()
 main = mainWidgetWithCss (encodeUtf8 css) todoMVC
 
-todoMVC :: ( DomBuilder t m
-           , DomBuilderSpace m ~ GhcjsDomSpace
-           , MonadFix m
-           , MonadHold t m
-           , PostBuild t m
-           )
-        => m ()
+todoMVC
+  :: ( DomBuilder t m
+     , DomBuilderSpace m ~ GhcjsDomSpace
+     , MonadFix m
+     , MonadHold t m
+     , PostBuild t m
+     )
+  => m ()
 todoMVC = el "div" $ do
   elAttr "section" ("class" =: "todoapp") $ do
     mainHeader
@@ -99,7 +105,13 @@ keyCodeIs :: Key -> KeyCode -> Bool
 keyCodeIs k c = keyCodeLookup c == k
 
 -- | Display an input field; produce new Tasks when the user creates them
-taskEntry :: (DomBuilder t m, MonadFix m, PostBuild t m, DomBuilderSpace m ~ GhcjsDomSpace) => m (Event t Task)
+taskEntry
+  :: ( DomBuilder t m
+     , MonadFix m
+     , PostBuild t m
+     , DomBuilderSpace m ~ GhcjsDomSpace
+     )
+  => m (Event t Task)
 taskEntry = el "header" $ do
     -- Create the textbox; it will be cleared whenever the user presses enter
     rec let newValueEntered = ffilter (keyCodeIs Enter . fromIntegral) (_textInput_keypress descriptionBox)
@@ -118,16 +130,17 @@ taskEntry = el "header" $ do
     return $ fmap (\d -> Task d False) $ fmapMaybe stripDescription newValue
 
 -- | Display the user's Tasks, subject to a Filter; return requested modifications to the Task list
-taskList :: ( DomBuilder t m
-            , DomBuilderSpace m ~ GhcjsDomSpace
-            , PostBuild t m
-            , MonadHold t m
-            , MonadFix m
-            , Ord k
-            )
-         => Dynamic t Filter
-         -> Dynamic t (Map k Task)
-         -> m (Event t (Map k Task -> Map k Task))
+taskList
+  :: ( DomBuilder t m
+     , DomBuilderSpace m ~ GhcjsDomSpace
+     , PostBuild t m
+     , MonadHold t m
+     , MonadFix m
+     , Ord k
+     )
+  => Dynamic t Filter
+  -> Dynamic t (Map k Task)
+  -> m (Event t (Map k Task -> Map k Task))
 taskList activeFilter tasks = elAttr "section" ("class" =: "main") $ do
   -- Create "toggle all" button
   let toggleAllState = all taskCompleted . Map.elems <$> tasks
@@ -178,14 +191,15 @@ buildCompletedCheckbox todo description = elAttr "div" ("class" =: "view") $ do
          )
 
 -- | Display an individual todo item
-todoItem :: ( DomBuilder t m
-            , DomBuilderSpace m ~ GhcjsDomSpace
-            , MonadFix m
-            , MonadHold t m
-            , PostBuild t m
-            )
-         => Dynamic t Task
-         -> m (Event t (Task -> Maybe Task))
+todoItem
+  :: ( DomBuilder t m
+     , DomBuilderSpace m ~ GhcjsDomSpace
+     , MonadFix m
+     , MonadHold t m
+     , PostBuild t m
+     )
+  => Dynamic t Task
+  -> m (Event t (Task -> Maybe Task))
 todoItem todo = do
   description <- holdUniqDyn $ fmap taskDescription todo
   rec -- Construct the attributes for our element
@@ -225,7 +239,13 @@ todoItem todo = do
   -- Return an event that fires whenever we change ourselves
   return changeTodo
 
-buildActiveFilter :: MonadWidget t m => m (Dynamic t Filter)
+buildActiveFilter
+  :: ( DomBuilder t m
+     , PostBuild t m
+     , MonadHold t m
+     , MonadFix m
+     )
+  => m (Dynamic t Filter)
 buildActiveFilter = elAttr "ul" ("class" =: "filters") $ do
   rec activeFilter <- holdDyn All setFilter
       let filterButton f = el "li" $ do
@@ -241,7 +261,14 @@ buildActiveFilter = elAttr "ul" ("class" =: "filters") $ do
   return activeFilter
 
 -- | Display the control footer; return the user's currently-selected filter and an event that fires when the user chooses to clear all completed events
-controls :: (DomBuilder t m, PostBuild t m, MonadHold t m, MonadFix m) => Dynamic t (Map k Task) -> m (Dynamic t Filter, Event t ())
+controls
+  :: ( DomBuilder t m
+     , PostBuild t m
+     , MonadHold t m
+     , MonadFix m
+     )
+  => Dynamic t (Map k Task)
+  -> m (Dynamic t Filter, Event t ())
 controls tasks = do
   -- Determine the attributes for the footer; it is invisible when there are no todo items
   let controlsAttrs = ffor tasks $ \t -> "class" =: "footer" <> if Map.null t then "style" =: "visibility:hidden" else mempty
