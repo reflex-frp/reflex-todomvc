@@ -203,10 +203,9 @@ todoItem
 todoItem todo = do
   description <- holdUniqDyn $ fmap taskDescription todo
   rec -- Construct the attributes for our element
-      let attrs = ffor2 todo editing' $ \t e -> "class" =: T.unwords
-            [ cls
-            | (cls, use) <- [("completed", taskCompleted t), ("editing", e)]
-            , use
+      let attrs = ffor2 todo editing' $ \t e -> Map.singleton "class" $ T.unwords $ concat
+            [ [ "completed" | taskCompleted t ]
+            , [ "editing" | e ]
             ]
       (editing', changeTodo) <- elDynAttr "li" attrs $ do
         (setCompleted, destroy, startEditing) <- buildCompletedCheckbox todo description
