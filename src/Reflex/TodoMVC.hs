@@ -23,7 +23,6 @@ import GHCJS.DOM.Types (JSM)
 
 import Reflex
 import Reflex.Dom.Core
-import Data.Text.Encoding (encodeUtf8)
 
 --------------------------------------------------------------------------------
 -- Model
@@ -116,17 +115,19 @@ taskEntry
   => m (Event t Task)
 taskEntry = el "header" $ do
     -- Create the textbox; it will be cleared whenever the user presses enter
-    rec let newValueEntered = ffilter (keyCodeIs Enter . fromIntegral) (_textInput_keypress descriptionBox)
-        descriptionBox <- textInput $ def
-          & textInputConfig_setValue .~ fmap (const "") newValueEntered
-          & textInputConfig_attributes .~ constDyn (mconcat [ "class" =: "new-todo"
-                                                            , "placeholder" =: "What needs to be done?"
-                                                            , "name" =: "newTodo"
-                                                            ])
+    rec let newValueEntered = keypress Enter descriptionBox
+        descriptionBox <- inputElement $ def
+          & inputElementConfig_setValue .~ fmap (const "") newValueEntered
+          & inputElementConfig_elementConfig . elementConfig_initialAttributes .~
+              mconcat [ "class" =: "new-todo"
+                      , "placeholder" =: "What needs to be done?"
+                      , "name" =: "newTodo"
+                      , "type" =: "text"
+                      ]
     -- -- Request focus on this element when the widget is done being built
     -- schedulePostBuild $ liftIO $ focus $ _textInput_element descriptionBox
     let -- | Get the current value of the textbox whenever the user hits enter
-        newValue = tag (current $ _textInput_value descriptionBox) newValueEntered
+        newValue = tag (current $ value descriptionBox) newValueEntered
     -- -- Set focus when the user enters a new Task
     -- performEvent_ $ fmap (const $ liftIO $ focus $ _textInput_element descriptionBox) newValueEntered
     return $ fmap (\d -> Task d False) $ fmapMaybe stripDescription newValue
