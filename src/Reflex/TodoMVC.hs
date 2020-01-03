@@ -145,11 +145,6 @@ taskList
   -> Dynamic t (Map k Task)
   -> m (Event t (Map k Task -> Map k Task))
 taskList activeFilter tasks = elAttr "section" ("class" =: "main") $ do
-  -- Create "toggle all" button
-  let toggleAllState = all taskCompleted . Map.elems <$> tasks
-      toggleAllAttrs = ffor tasks $ \t -> "class" =: "toggle-all" <> "name" =: "toggle" <> if Map.null t then "style" =: "visibility:hidden" else mempty
-  toggleAll <- checkboxView toggleAllAttrs toggleAllState
-  elAttr "label" ("for" =: "toggle-all") $ text "Mark all as complete"
   -- Filter the item list
   let visibleTasks = zipDynWith (Map.filter . satisfiesFilter) activeFilter tasks
   -- Hide the item list itself if there are no items
@@ -163,11 +158,23 @@ taskList activeFilter tasks = elAttr "section" ("class" =: "main") $ do
   let combineItemChanges = fmap (foldl' (.) id) . mergeList . map (\(k, v) -> fmap (flip Map.update k) v) . Map.toList
       itemChangeEvent = fmap combineItemChanges items
       itemChanges = switch $ current itemChangeEvent
-      -- Change all items' completed state when the toggleAll button is clicked
-      toggleAllChanges = fmap (\oldAllCompletedState -> fmap (\t -> t { taskCompleted = not oldAllCompletedState })) $ tag (current toggleAllState) toggleAll
-  return $ mergeWith (.) [ itemChanges
-                         , toggleAllChanges
-                         ]
+  return $ itemChanges
+
+checkmark
+  :: ( DomBuilder t m
+     , DomBuilderSpace m ~ GhcjsDomSpace
+     , MonadFix m
+     , MonadHold t m
+     , PostBuild t m
+     )
+  => Bool
+  -> m (Event t ())
+checkmark checked = domEvent Click <$> (inputElement $ def
+  & inputElementConfig_initialChecked .~ checked
+  & inputElementConfig_elementConfig . elementConfig_initialAttributes .~
+      mconcat [ "class" =: "toggle"
+              , "type" =: "checkbox"
+              ])
 
 buildCompletedCheckbox
   :: ( DomBuilder t m
@@ -182,8 +189,9 @@ buildCompletedCheckbox
 buildCompletedCheckbox todo description = elAttr "div" ("class" =: "view") $ do
   -- Display the todo item's completed status, and allow it to be set
   completed <- holdUniqDyn $ fmap taskCompleted todo
-  completedCheckbox <- checkboxView (constDyn $ "class" =: "toggle") completed
-  let setCompleted = fmap not $ tag (current completed) completedCheckbox
+  initialState <- sample $ taskCompleted <$> current todo
+  checkboxClicked <- switchDyn <$> widgetHold (checkmark initialState) (checkmark . taskCompleted <$> updated todo)
+  let setCompleted = fmap not $ tag (current completed) checkboxClicked
   -- Display the todo item's name for viewing purposes
   (descriptionLabel, _) <- el' "label" $ dynText description
   -- Display the button for deleting the todo item
@@ -214,16 +222,17 @@ todoItem todo = do
         (setCompleted, destroy, startEditing) <- buildCompletedCheckbox todo description
         -- Set the current value of the editBox whenever we start editing (it's not visible in non-editing mode)
         let setEditValue = tag (current description) $ ffilter id $ updated editing'
-        editBox <- textInput $ def
-          & textInputConfig_setValue .~ setEditValue
-          & textInputConfig_attributes .~ constDyn ("class" =: "edit" <> "name" =: "title")
+        editBox <- inputElement $ def
+          & inputElementConfig_setValue .~ setEditValue
+          & inputElementConfig_elementConfig . elementConfig_initialAttributes
+            .~ ("class" =: "edit" <> "name" =: "title")
         let -- Set the todo item's description when the user leaves the textbox or presses enter in it
-            setDescription = tag (current $ _textInput_value editBox) $ leftmost
-              [ void $ ffilter (keyCodeIs Enter . fromIntegral) $ _textInput_keypress editBox
-              , void $ ffilter not $ updated $ _textInput_hasFocus editBox
+            setDescription = tag (current $ value editBox) $ leftmost
+              [ keypress Enter editBox
+              , domEvent Blur editBox
               ]
             -- Cancel editing (without changing the item's description) when the user presses escape in the textbox
-            cancelEdit = void $ ffilter (keyCodeIs Escape . fromIntegral) $ _textInput_keydown editBox
+            cancelEdit = keypress Escape editBox
             -- Put together all the ways the todo item can change itself
             changeSelf = mergeWith (>=>) [ fmap (\c t -> Just $ t { taskCompleted = c }) setCompleted
                                          , fmap (const $ const Nothing) destroy
