@@ -111,7 +111,7 @@ body {
 	border-top: 1px solid #e6e6e6;
 }
 
-.toggle-all {
+#toggle-all {
 	width: 1px;
 	height: 1px;
 	border: none; /* Mobile Safari */
@@ -121,25 +121,21 @@ body {
 	bottom: 100%;
 }
 
-.toggle-all + label {
+#toggle-all + label {
 	width: 60px;
-	height: 34px;
-	font-size: 0;
+	height: 66px;
+  display: inline-block;
 	position: absolute;
-	top: -52px;
-	left: -13px;
+  line-height: 66px;
+  text-align: center;
 	-webkit-transform: rotate(90deg);
 	transform: rotate(90deg);
-}
-
-.toggle-all + label:before {
-	content: '❯';
 	font-size: 22px;
 	color: #e6e6e6;
-	padding: 10px 27px 10px 27px;
+  z-index: 10;
 }
 
-.toggle-all:checked + label:before {
+#toggle-all:checked + label {
 	color: #737373;
 }
 

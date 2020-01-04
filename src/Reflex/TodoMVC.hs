@@ -7,7 +7,7 @@
 {-# LANGUAGE TypeFamilies #-}
 module Reflex.TodoMVC where
 
-import Prelude hiding (mapM, mapM_, all, sequence)
+import Prelude hiding (mapM, mapM_, sequence)
 
 import Control.Monad hiding (mapM, mapM_, forM, forM_, sequence)
 import Control.Monad.Fix
@@ -81,10 +81,12 @@ todoMVC = el "div" $ do
     mainHeader
     rec tasks <- foldDyn ($) initialTasks $ mergeWith (.)
                    [ fmap insertNew_ newTask
+                   , modifyTasks
                    , listModifyTasks
                    , fmap (const $ Map.filter $ not . taskCompleted) clearCompleted -- Call out the type and purpose of these things
                    ]
-        newTask <- taskEntry
+        (modifyTasks, newTask) <- el "header" $
+          (,) <$> toggleAll tasks <*> taskEntry
         listModifyTasks <- taskList activeFilter tasks
         (activeFilter, clearCompleted) <- controls tasks
     return ()
@@ -105,6 +107,25 @@ stripDescription d =
 keyCodeIs :: Key -> KeyCode -> Bool
 keyCodeIs k c = keyCodeLookup c == k
 
+toggleAll
+  :: ( DomBuilder t m
+     , DomBuilderSpace m ~ GhcjsDomSpace
+     , MonadFix m
+     , MonadHold t m
+     , MonadSample t m
+     , PostBuild t m
+     )
+  => Dynamic t (Map k Task)
+  -> m (Event t (Map k Task -> Map k Task))
+toggleAll tasks = do
+  let toggleAllState = (\els -> not (null els) && all taskCompleted els) . Map.elems <$> tasks
+      namedCheckmark = toggleInput $ "id" =: "toggle-all"
+  -- Create "toggle all" button
+  initialState <- sample $ current toggleAllState
+  toggleAllClick <- switchDyn <$> widgetHold (namedCheckmark initialState) (namedCheckmark <$> updated toggleAllState)
+  elAttr "label" ("for" =: "toggle-all") $ text "❯"
+  pure $ fmap (\oldAllCompletedState -> fmap (\t -> t { taskCompleted = not oldAllCompletedState })) $ tag (current toggleAllState) toggleAllClick
+
 -- | Display an input field; produce new Tasks when the user creates them
 taskEntry
   :: ( DomBuilder t m
@@ -113,24 +134,24 @@ taskEntry
      , DomBuilderSpace m ~ GhcjsDomSpace
      )
   => m (Event t Task)
-taskEntry = el "header" $ do
-    -- Create the textbox; it will be cleared whenever the user presses enter
-    rec let newValueEntered = keypress Enter descriptionBox
-        descriptionBox <- inputElement $ def
-          & inputElementConfig_setValue .~ fmap (const "") newValueEntered
-          & inputElementConfig_elementConfig . elementConfig_initialAttributes .~
-              mconcat [ "class" =: "new-todo"
-                      , "placeholder" =: "What needs to be done?"
-                      , "name" =: "newTodo"
-                      , "type" =: "text"
-                      ]
-    -- -- Request focus on this element when the widget is done being built
-    -- schedulePostBuild $ liftIO $ focus $ _textInput_element descriptionBox
-    let -- | Get the current value of the textbox whenever the user hits enter
-        newValue = tag (current $ value descriptionBox) newValueEntered
-    -- -- Set focus when the user enters a new Task
-    -- performEvent_ $ fmap (const $ liftIO $ focus $ _textInput_element descriptionBox) newValueEntered
-    return $ fmap (\d -> Task d False) $ fmapMaybe stripDescription newValue
+taskEntry = do
+  -- Create the textbox; it will be cleared whenever the user presses enter
+  rec let newValueEntered = keypress Enter descriptionBox
+      descriptionBox <- inputElement $ def
+        & inputElementConfig_setValue .~ fmap (const "") newValueEntered
+        & inputElementConfig_elementConfig . elementConfig_initialAttributes .~
+            mconcat [ "class" =: "new-todo"
+                    , "placeholder" =: "What needs to be done?"
+                    , "name" =: "newTodo"
+                    , "type" =: "text"
+                    ]
+  -- -- Request focus on this element when the widget is done being built
+  -- schedulePostBuild $ liftIO $ focus $ _textInput_element descriptionBox
+  let -- | Get the current value of the textbox whenever the user hits enter
+      newValue = tag (current $ value descriptionBox) newValueEntered
+  -- -- Set focus when the user enters a new Task
+  -- performEvent_ $ fmap (const $ liftIO $ focus $ _textInput_element descriptionBox) newValueEntered
+  return $ fmap (\d -> Task d False) $ fmapMaybe stripDescription newValue
 
 -- | Display the user's Tasks, subject to a Filter; return requested modifications to the Task list
 taskList
@@ -158,22 +179,24 @@ taskList activeFilter tasks = elAttr "section" ("class" =: "main") $ do
   let combineItemChanges = fmap (foldl' (.) id) . mergeList . map (\(k, v) -> fmap (flip Map.update k) v) . Map.toList
       itemChangeEvent = fmap combineItemChanges items
       itemChanges = switch $ current itemChangeEvent
-  return $ itemChanges
+  return itemChanges
 
-checkmark
+toggleInput
   :: ( DomBuilder t m
      , DomBuilderSpace m ~ GhcjsDomSpace
      , MonadFix m
      , MonadHold t m
      , PostBuild t m
      )
-  => Bool
+  => Map AttributeName Text
+  -> Bool
   -> m (Event t ())
-checkmark checked = domEvent Click <$> (inputElement $ def
+toggleInput attrs checked = domEvent Click <$> inputElement (def
   & inputElementConfig_initialChecked .~ checked
   & inputElementConfig_elementConfig . elementConfig_initialAttributes .~
       mconcat [ "class" =: "toggle"
               , "type" =: "checkbox"
+              , attrs
               ])
 
 buildCompletedCheckbox
@@ -190,7 +213,7 @@ buildCompletedCheckbox todo description = elAttr "div" ("class" =: "view") $ do
   -- Display the todo item's completed status, and allow it to be set
   completed <- holdUniqDyn $ fmap taskCompleted todo
   initialState <- sample $ taskCompleted <$> current todo
-  checkboxClicked <- switchDyn <$> widgetHold (checkmark initialState) (checkmark . taskCompleted <$> updated todo)
+  checkboxClicked <- switchDyn <$> widgetHold (toggleInput mempty initialState) (toggleInput mempty . taskCompleted <$> updated todo)
   let setCompleted = fmap not $ tag (current completed) checkboxClicked
   -- Display the todo item's name for viewing purposes
   (descriptionLabel, _) <- el' "label" $ dynText description
