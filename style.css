@@ -124,15 +124,15 @@ body {
 #toggle-all + label {
 	width: 60px;
 	height: 66px;
-  display: inline-block;
+	display: inline-block;
 	position: absolute;
-  line-height: 66px;
-  text-align: center;
+	line-height: 66px;
+	text-align: center;
 	-webkit-transform: rotate(90deg);
 	transform: rotate(90deg);
 	font-size: 22px;
 	color: #e6e6e6;
-  z-index: 10;
+	z-index: 10;
 }
 
 #toggle-all:checked + label {
