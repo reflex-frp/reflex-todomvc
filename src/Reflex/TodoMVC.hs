@@ -81,12 +81,10 @@ todoMVC = el "div" $ do
     mainHeader
     rec tasks <- foldDyn ($) initialTasks $ mergeWith (.)
                    [ fmap insertNew_ newTask
-                   , modifyTasks
                    , listModifyTasks
                    , fmap (const $ Map.filter $ not . taskCompleted) clearCompleted -- Call out the type and purpose of these things
                    ]
-        (modifyTasks, newTask) <- el "header" $
-          (,) <$> toggleAll tasks <*> taskEntry
+        newTask <- taskEntry
         listModifyTasks <- taskList activeFilter tasks
         (activeFilter, clearCompleted) <- controls tasks
     return ()
@@ -107,25 +105,6 @@ stripDescription d =
 keyCodeIs :: Key -> KeyCode -> Bool
 keyCodeIs k c = keyCodeLookup c == k
 
-toggleAll
-  :: ( DomBuilder t m
-     , DomBuilderSpace m ~ GhcjsDomSpace
-     , MonadFix m
-     , MonadHold t m
-     , MonadSample t m
-     , PostBuild t m
-     )
-  => Dynamic t (Map k Task)
-  -> m (Event t (Map k Task -> Map k Task))
-toggleAll tasks = do
-  let toggleAllState = (\els -> not (null els) && all taskCompleted els) . Map.elems <$> tasks
-      namedCheckmark = toggleInput $ "id" =: "toggle-all"
-  -- Create "toggle all" button
-  initialState <- sample $ current toggleAllState
-  toggleAllClick <- switchDyn <$> widgetHold (namedCheckmark initialState) (namedCheckmark <$> updated toggleAllState)
-  elAttr "label" ("for" =: "toggle-all") $ text "❯"
-  pure $ fmap (\oldAllCompletedState -> fmap (\t -> t { taskCompleted = not oldAllCompletedState })) $ tag (current toggleAllState) toggleAllClick
-
 -- | Display an input field; produce new Tasks when the user creates them
 taskEntry
   :: ( DomBuilder t m
@@ -134,7 +113,7 @@ taskEntry
      , DomBuilderSpace m ~ GhcjsDomSpace
      )
   => m (Event t Task)
-taskEntry = do
+taskEntry = el "header" $ do
   -- Create the textbox; it will be cleared whenever the user presses enter
   rec let newValueEntered = keypress Enter descriptionBox
       descriptionBox <- inputElement $ def
@@ -166,6 +145,10 @@ taskList
   -> Dynamic t (Map k Task)
   -> m (Event t (Map k Task -> Map k Task))
 taskList activeFilter tasks = elAttr "section" ("class" =: "main") $ do
+  let toggleAllState = all taskCompleted . Map.elems <$> tasks
+      toggleAllAttrs = ffor tasks $ \t -> "class" =: "toggle-all" <> "name" =: "toggle" <> if Map.null t then "style" =: "visibility:hidden" else mempty
+  toggleAll <- toggleInput toggleAllAttrs toggleAllState
+  elAttr "label" ("for" =: "toggle-all") $ text "Mark all as complete"
   -- Filter the item list
   let visibleTasks = zipDynWith (Map.filter . satisfiesFilter) activeFilter tasks
   -- Hide the item list itself if there are no items
@@ -188,16 +171,20 @@ toggleInput
      , MonadHold t m
      , PostBuild t m
      )
-  => Map AttributeName Text
-  -> Bool
+  => Dynamic t (Map AttributeName Text)
+  -> Dynamic t Bool
   -> m (Event t ())
-toggleInput attrs checked = domEvent Click <$> inputElement (def
-  & inputElementConfig_initialChecked .~ checked
-  & inputElementConfig_elementConfig . elementConfig_initialAttributes .~
-      mconcat [ "class" =: "toggle"
-              , "type" =: "checkbox"
-              , attrs
-              ])
+toggleInput dynAttrs dynChecked = do
+  let attrs = (<> "class" =: "toggle") . ("type" =: "checkbox" <>) <$> dynAttrs
+      updatedAttrs = fmap Just <$> updated dynAttrs
+      updatedChecked = updated dynChecked
+  initialAttrs <- sample $ current attrs
+  initialChecked <- sample $ current dynChecked
+  domEvent Click <$> inputElement (def
+    & inputElementConfig_initialChecked .~ initialChecked
+    & inputElementConfig_setChecked .~ updatedChecked
+    & inputElementConfig_elementConfig . elementConfig_modifyAttributes .~ updatedAttrs
+    & inputElementConfig_elementConfig . elementConfig_initialAttributes .~ initialAttrs)
 
 buildCompletedCheckbox
   :: ( DomBuilder t m
@@ -212,8 +199,7 @@ buildCompletedCheckbox
 buildCompletedCheckbox todo description = elAttr "div" ("class" =: "view") $ do
   -- Display the todo item's completed status, and allow it to be set
   completed <- holdUniqDyn $ fmap taskCompleted todo
-  initialState <- sample $ taskCompleted <$> current todo
-  checkboxClicked <- switchDyn <$> widgetHold (toggleInput mempty initialState) (toggleInput mempty . taskCompleted <$> updated todo)
+  checkboxClicked <- toggleInput (constDyn mempty) completed
   let setCompleted = fmap not $ tag (current completed) checkboxClicked
   -- Display the todo item's name for viewing purposes
   (descriptionLabel, _) <- el' "label" $ dynText description
