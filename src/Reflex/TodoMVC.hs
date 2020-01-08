@@ -7,7 +7,7 @@
 {-# LANGUAGE TypeFamilies #-}
 module Reflex.TodoMVC where
 
-import Prelude hiding (mapM, mapM_, all, sequence)
+import Prelude hiding (mapM, mapM_, sequence)
 
 import Control.Monad hiding (mapM, mapM_, forM, forM_, sequence)
 import Control.Monad.Fix
@@ -23,7 +23,6 @@ import GHCJS.DOM.Types (JSM)
 
 import Reflex
 import Reflex.Dom.Core
-import Data.Text.Encoding (encodeUtf8)
 
 --------------------------------------------------------------------------------
 -- Model
@@ -115,21 +114,23 @@ taskEntry
      )
   => m (Event t Task)
 taskEntry = el "header" $ do
-    -- Create the textbox; it will be cleared whenever the user presses enter
-    rec let newValueEntered = ffilter (keyCodeIs Enter . fromIntegral) (_textInput_keypress descriptionBox)
-        descriptionBox <- textInput $ def
-          & textInputConfig_setValue .~ fmap (const "") newValueEntered
-          & textInputConfig_attributes .~ constDyn (mconcat [ "class" =: "new-todo"
-                                                            , "placeholder" =: "What needs to be done?"
-                                                            , "name" =: "newTodo"
-                                                            ])
-    -- -- Request focus on this element when the widget is done being built
-    -- schedulePostBuild $ liftIO $ focus $ _textInput_element descriptionBox
-    let -- | Get the current value of the textbox whenever the user hits enter
-        newValue = tag (current $ _textInput_value descriptionBox) newValueEntered
-    -- -- Set focus when the user enters a new Task
-    -- performEvent_ $ fmap (const $ liftIO $ focus $ _textInput_element descriptionBox) newValueEntered
-    return $ fmap (\d -> Task d False) $ fmapMaybe stripDescription newValue
+  -- Create the textbox; it will be cleared whenever the user presses enter
+  rec let newValueEntered = keypress Enter descriptionBox
+      descriptionBox <- inputElement $ def
+        & inputElementConfig_setValue .~ fmap (const "") newValueEntered
+        & inputElementConfig_elementConfig . elementConfig_initialAttributes .~
+            mconcat [ "class" =: "new-todo"
+                    , "placeholder" =: "What needs to be done?"
+                    , "name" =: "newTodo"
+                    , "type" =: "text"
+                    ]
+  -- -- Request focus on this element when the widget is done being built
+  -- schedulePostBuild $ liftIO $ focus $ _textInput_element descriptionBox
+  let -- | Get the current value of the textbox whenever the user hits enter
+      newValue = tag (current $ value descriptionBox) newValueEntered
+  -- -- Set focus when the user enters a new Task
+  -- performEvent_ $ fmap (const $ liftIO $ focus $ _textInput_element descriptionBox) newValueEntered
+  return $ fmap (\d -> Task d False) $ fmapMaybe stripDescription newValue
 
 -- | Display the user's Tasks, subject to a Filter; return requested modifications to the Task list
 taskList
@@ -144,10 +145,9 @@ taskList
   -> Dynamic t (Map k Task)
   -> m (Event t (Map k Task -> Map k Task))
 taskList activeFilter tasks = elAttr "section" ("class" =: "main") $ do
-  -- Create "toggle all" button
   let toggleAllState = all taskCompleted . Map.elems <$> tasks
       toggleAllAttrs = ffor tasks $ \t -> "class" =: "toggle-all" <> "name" =: "toggle" <> if Map.null t then "style" =: "visibility:hidden" else mempty
-  toggleAll <- checkboxView toggleAllAttrs toggleAllState
+  toggleAll <- toggleInput toggleAllAttrs toggleAllState
   elAttr "label" ("for" =: "toggle-all") $ text "Mark all as complete"
   -- Filter the item list
   let visibleTasks = zipDynWith (Map.filter . satisfiesFilter) activeFilter tasks
@@ -162,11 +162,29 @@ taskList activeFilter tasks = elAttr "section" ("class" =: "main") $ do
   let combineItemChanges = fmap (foldl' (.) id) . mergeList . map (\(k, v) -> fmap (flip Map.update k) v) . Map.toList
       itemChangeEvent = fmap combineItemChanges items
       itemChanges = switch $ current itemChangeEvent
-      -- Change all items' completed state when the toggleAll button is clicked
-      toggleAllChanges = fmap (\oldAllCompletedState -> fmap (\t -> t { taskCompleted = not oldAllCompletedState })) $ tag (current toggleAllState) toggleAll
-  return $ mergeWith (.) [ itemChanges
-                         , toggleAllChanges
-                         ]
+  return itemChanges
+
+toggleInput
+  :: ( DomBuilder t m
+     , DomBuilderSpace m ~ GhcjsDomSpace
+     , MonadFix m
+     , MonadHold t m
+     , PostBuild t m
+     )
+  => Dynamic t (Map AttributeName Text)
+  -> Dynamic t Bool
+  -> m (Event t ())
+toggleInput dynAttrs dynChecked = do
+  let attrs = (<> "class" =: "toggle") . ("type" =: "checkbox" <>) <$> dynAttrs
+      updatedAttrs = fmap Just <$> updated dynAttrs
+      updatedChecked = updated dynChecked
+  initialAttrs <- sample $ current attrs
+  initialChecked <- sample $ current dynChecked
+  domEvent Click <$> inputElement (def
+    & inputElementConfig_initialChecked .~ initialChecked
+    & inputElementConfig_setChecked .~ updatedChecked
+    & inputElementConfig_elementConfig . elementConfig_modifyAttributes .~ updatedAttrs
+    & inputElementConfig_elementConfig . elementConfig_initialAttributes .~ initialAttrs)
 
 buildCompletedCheckbox
   :: ( DomBuilder t m
@@ -181,8 +199,8 @@ buildCompletedCheckbox
 buildCompletedCheckbox todo description = elAttr "div" ("class" =: "view") $ do
   -- Display the todo item's completed status, and allow it to be set
   completed <- holdUniqDyn $ fmap taskCompleted todo
-  completedCheckbox <- checkboxView (constDyn $ "class" =: "toggle") completed
-  let setCompleted = fmap not $ tag (current completed) completedCheckbox
+  checkboxClicked <- toggleInput (constDyn mempty) completed
+  let setCompleted = fmap not $ tag (current completed) checkboxClicked
   -- Display the todo item's name for viewing purposes
   (descriptionLabel, _) <- el' "label" $ dynText description
   -- Display the button for deleting the todo item
@@ -213,16 +231,17 @@ todoItem todo = do
         (setCompleted, destroy, startEditing) <- buildCompletedCheckbox todo description
         -- Set the current value of the editBox whenever we start editing (it's not visible in non-editing mode)
         let setEditValue = tag (current description) $ ffilter id $ updated editing'
-        editBox <- textInput $ def
-          & textInputConfig_setValue .~ setEditValue
-          & textInputConfig_attributes .~ constDyn ("class" =: "edit" <> "name" =: "title")
+        editBox <- inputElement $ def
+          & inputElementConfig_setValue .~ setEditValue
+          & inputElementConfig_elementConfig . elementConfig_initialAttributes
+            .~ ("class" =: "edit" <> "name" =: "title")
         let -- Set the todo item's description when the user leaves the textbox or presses enter in it
-            setDescription = tag (current $ _textInput_value editBox) $ leftmost
-              [ void $ ffilter (keyCodeIs Enter . fromIntegral) $ _textInput_keypress editBox
-              , void $ ffilter not $ updated $ _textInput_hasFocus editBox
+            setDescription = tag (current $ value editBox) $ leftmost
+              [ keypress Enter editBox
+              , domEvent Blur editBox
               ]
             -- Cancel editing (without changing the item's description) when the user presses escape in the textbox
-            cancelEdit = void $ ffilter (keyCodeIs Escape . fromIntegral) $ _textInput_keydown editBox
+            cancelEdit = keypress Escape editBox
             -- Put together all the ways the todo item can change itself
             changeSelf = mergeWith (>=>) [ fmap (\c t -> Just $ t { taskCompleted = c }) setCompleted
                                          , fmap (const $ const Nothing) destroy
