@@ -86,7 +86,7 @@ executable reflex-todomvc
     reflex-todomvc
   ghc-prof-options: -fprof-auto
   ghc-options: -threaded -Wall -fwarn-tabs -funbox-strict-fields -O2 -v -fPIC -optl -fno-stack-protector -optl -DTABLES_NEXT_TO_CODE
-  cc-options: -fPIC
+  cc-options: -fPIC -fno-stack-protector -DTABLES_NEXT_TO_CODE
 
 executable reflex-todomvc-warp
   if !flag(warp) || impl(ghcjs)
