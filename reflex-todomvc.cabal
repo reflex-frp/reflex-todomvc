@@ -70,11 +70,6 @@ library
     Reflex.TodoMVC
   ghc-prof-options: -fprof-auto
   ghc-options:  -Wall -fwarn-tabs -funbox-strict-fields -O2
-  if os(ios)
-    build-depends:
-      jsaddle-wkwebview
-    exposed-modules:
-      Reflex.IOS
 
 executable reflex-todomvc
   hs-source-dirs: src-bin
