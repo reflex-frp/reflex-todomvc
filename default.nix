@@ -1,4 +1,4 @@
-{ mkDerivation, reflex, reflex-dom, file-embed, cabal-macosx, jsaddle-warp, jsaddle-webkit2gtk, jsaddle-wkwebview, ghc, stdenv, darwin
+{ mkDerivation, reflex, reflex-dom, file-embed, cabal-macosx, jsaddle-warp, jsaddle-webkit2gtk, jsaddle-wkwebview, ghc, stdenv, lib, darwin
 , buildPackages
 }:
 
@@ -27,7 +27,7 @@ mkDerivation {
     jsaddle-webkit2gtk
     jsaddle-warp
   ]);
-  postInstall = stdenv.lib.optionalString (ghc.isGhcjs or false) ''
+  postInstall = lib.optionalString (ghc.isGhcjs or false) ''
     rm "$out/bin/reflex-todomvc" || true # This is not designed to be run from node, so don't let it be
   '';
   license = null;
