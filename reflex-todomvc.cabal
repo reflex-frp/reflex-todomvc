@@ -1,15 +1,15 @@
 Name: reflex-todomvc
+cabal-version: 2.0
 Version: 0.1
 Synopsis: Functional Reactive TodoMVC
 Description: An implementation of the TodoMVC specification using the Reflex-DOM functional reactive DOM library
-License: BSD3
+License: BSD-3-Clause
 License-file: LICENSE
 Author: Ryan Trinkle
 Maintainer: ryan.trinkle@gmail.com
 Stability: Experimental
 Category: FRP
 Build-type: Custom
-Cabal-version: >=1.8
 
 flag warp
   description: Build relfex-todomvc-warp
@@ -28,8 +28,8 @@ flag webkit2gtk
   default: True
 
 custom-setup
-  setup-depends: base >= 4.6,
-                 Cabal >= 1.24.2 && < 3,
+  setup-depends: base -any,
+                 Cabal -any,
                  cabal-macosx >= 0.2.3.4 && < 0.3
 
 benchmark bench-builder-all
