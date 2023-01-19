@@ -18,6 +18,8 @@ import Data.Foldable
 import Data.Monoid ((<>))
 import Data.Text (Text)
 import qualified Data.Text as T
+import qualified System.Info as INFO
+import qualified Data.Version as VER
 
 import GHCJS.DOM.Types (JSM)
 
@@ -312,6 +314,17 @@ controls tasks = do
 infoFooter :: DomBuilder t m => m ()
 infoFooter = elAttr "footer" ("class" =: "info") $ do
   el "p" $ text "Click to edit a todo"
+  el "p" $ text "Compiled on Haskell.nix!"
+  el "p" $ do
+      text "Compiler: "
+      text (T.pack INFO.compilerName)
+      text " "
+      text (T.pack (VER.showVersion INFO.compilerVersion))
+  el "p" $ do
+      text "Platform: "
+      text (T.pack INFO.os)
+      text " "
+      text (T.pack INFO.arch)
   el "p" $ do
     text "Written by "
     elAttr "a" ("href" =: "https://github.com/ryantrinkle") $ text "Ryan Trinkle"
