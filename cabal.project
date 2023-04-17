@@ -1,1 +1,6 @@
 packages: .
+
+source-repository-package
+  type: git
+  location: https://github.com/obsidiansystems/android-activity.git
+  tag: ff27970dca5fb5f4979af23dbf1264c6cc50e2e3
