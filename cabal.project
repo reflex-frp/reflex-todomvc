@@ -1,1 +1,6 @@
 packages: .
+
+constraints: lens == 4.19.2
+
+package reflex
+  flags: -use-template-haskell
