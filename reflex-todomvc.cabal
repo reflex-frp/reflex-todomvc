@@ -12,15 +12,15 @@ Build-type: Custom
 Cabal-version: >=1.8
 
 flag warp
-  description: Build relfex-todomvc-warp
+  description: Build reflex-todomvc-warp
   default: True
 
 flag webkitgtk
-  description: Build relfex-todomvc-webkitgtk
+  description: Build reflex-todomvc-webkitgtk
   default: True
 
 flag wkwebview
-  description: Build relfex-todomvc-wkwebview
+  description: Build reflex-todomvc-wkwebview
   default: True
 
 flag webkit2gtk
