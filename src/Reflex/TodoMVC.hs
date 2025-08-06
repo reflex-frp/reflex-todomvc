@@ -66,7 +66,7 @@ satisfiesFilter f = case f of
 --------------------------------------------------------------------------------
 
 main :: JSM ()
-main = mainWidgetWithCss $(embedFile "style.css") todoMVC
+main = mainWidgetWithCss $(embedFile "static/style.css") todoMVC
 
 todoMVC
   :: ( DomBuilder t m
